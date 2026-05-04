@@ -11,3 +11,9 @@ node_modules/
 
 # Env
 .env
+
+# Caches & backups
+data/geocode-cache.json
+data/*.bak
+reports/
+demo-commit.txt
