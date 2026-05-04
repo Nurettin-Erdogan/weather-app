@@ -105,3 +105,45 @@ Notlar ve uyarılar
 
 İleri adımlar
 - İsterseniz toplu geocoding'i parça parça çalıştırıp (`--start`/`--limit`) çıktıların doğrulanması ve sonra `data/il-ilce-with-loc.json` dosyasının repo'ya eklenmesi iyi olur.
+
+### Hızlı smoke-test kontrol listesi (geliştirici)
+
+1. Proje klasöründe terminal açın ve lokal sunucuyu başlatın:
+
+```bash
+python -m http.server 8000
+```
+
+2. Tarayıcıda `http://localhost:8000` adresini açın.
+
+3. Adım adım test akışı:
+	- `Konumumu Kullan` butonuna tıklayın → tarayıcı izin penceresinden `Allow` seçin. Sayfa `Konum: <Şehir>` mesajı gösterecek ve hava verileri yüklenecektir.
+	- Tekrar `Konumumu Kullan` tıklayın → bu sefer `Block` seçin (izin reddi). Uygulama IP‑tabanlı yaklaşık konum denemeli ve `Yaklaşık konum: <Şehir>` mesajını göstermelidir.
+	- Arama kutusuna örnek şehir/ilçe yazın; öneriler (autocomplete) ve seçimin doğru çalıştığını kontrol edin.
+	- 5 günlük tahmin kartlarından birine tıklayın → saatlik detay panelinin açıldığını doğrulayın.
+
+4. DevTools → `Console` ve `Network` sekmelerini kontrol edin. Open‑Meteo (forecast/geocoding) ve IP‑servisleri isteklerini kontrol edin; tarayıcıdan yapılan testler genellikle sunucu ortamından yapılan isteklerden daha güvenilirdir.
+
+5. Not: Bazı durumlarda Open‑Meteo veya Nominatim uç noktalarına yapılan doğrudan sunucu istekleri 404/403 dönebilir. Bu nedenle testleri tarayıcıda manuel olarak yapmanız önerilir.
+
+### Commit & Push — kısa özet
+
+```bash
+git add -A
+git commit -m "kısa: açıklayıcı mesaj"
+git push origin HEAD
+```
+
+### VS Code — hızlı GUI adımları
+
+- `Source Control` (Ctrl+Shift+G) → değişiklikleri inceleyin → dosya üzerindeki `+` ile stage edin veya `Stage All` kullanın.
+- Üstteki mesaj kutusuna kısa açıklayıcı commit mesajı yazın → ✔ ile commit edin.
+- Sol alt veya üç nokta menüsünden `Push` seçin; ilk push'ta GitHub kimlik doğrulaması penceresini takip edin.
+
+### Dikkat edilmesi gerekenler
+
+- `data/` içindeki büyük JSON dosyalarını, `reports/` klasörünü ve `*.bak` dosyalarını repoya commit etmeyin. Bu repo `.gitignore` ile bu dosyaları hariç tutacak şekilde ayarlandı.
+- Toplu geocoding sonuçlarını paylaşıma almadan önce manuel doğrulama yapın — otomatik eşleştirmeler hatalı olabilir.
+
+---
+Bu bölümü istediğiniz gibi kısaltayım veya daha fazla teknik detay ekleyeyim; nasıl görmek istersiniz?
