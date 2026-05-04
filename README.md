@@ -126,6 +126,38 @@ python -m http.server 8000
 
 5. Not: Bazı durumlarda Open‑Meteo veya Nominatim uç noktalarına yapılan doğrudan sunucu istekleri 404/403 dönebilir. Bu nedenle testleri tarayıcıda manuel olarak yapmanız önerilir.
 
+### Otomatik smoke-test (Playwright)
+
+Projede basit bir Playwright tabanlı smoke-test eklendi: `tests/smoke_playwright.py`.
+Bu test, arama akışını, günlük kartından saatlik panel açılmasını ve konum izni reddi durumunu otomatik olarak kontrol eder.
+
+Çalıştırma (tercihen proje kökünde bir virtualenv kullanın):
+
+Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install playwright
+python -m playwright install chromium
+python tests/smoke_playwright.py
+```
+
+macOS / Linux:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install playwright
+python -m playwright install chromium
+python tests/smoke_playwright.py
+```
+
+Notlar:
+- Sunucunun (`python -m http.server 8000`) çalışıyor olması gerekir.
+- İlk defa çalıştırırken `playwright install chromium` Chromium indirir; internet bağlantısı gerektirir.
+- CI entegrasyonu isterseniz bu adımları bir GitHub Actions workflow'una ekleyebilirim.
+
 ### Commit & Push — kısa özet
 
 ```bash
