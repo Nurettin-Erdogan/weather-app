@@ -399,18 +399,50 @@ function renderWeatherFromData(weatherData, name='', country='') {
 // show error in result area with optional retry
 function showResultError(msg, retryCallback) {
   if (!resultDiv) return;
+  // clear result area and show accessible alert
   resultDiv.innerHTML = '';
+  const container = document.createElement('div');
+  container.className = 'error-wrapper';
+  container.setAttribute('role', 'alert');
+  container.setAttribute('aria-live', 'polite');
+
   const p = document.createElement('p');
+  p.className = 'error-text';
   p.textContent = msg || 'Bir hata oluştu.';
-  resultDiv.appendChild(p);
+  container.appendChild(p);
+
   if (typeof retryCallback === 'function') {
     const btn = document.createElement('button');
     btn.textContent = 'Tekrar Dene';
-    btn.className = 'unit-btn';
+    btn.className = 'unit-btn retry-btn';
     btn.style.marginTop = '8px';
-    btn.addEventListener('click', retryCallback);
-    resultDiv.appendChild(btn);
+    btn.setAttribute('aria-label', 'Tekrar dene');
+
+    // safe async handler: disable while running, await promise if returned
+    btn.addEventListener('click', async (ev) => {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = 'Bekleniyor...';
+      btn.setAttribute('aria-busy', 'true');
+      try {
+        const res = retryCallback();
+        if (res && typeof res.then === 'function') {
+          await res;
+        }
+      } catch (err) {
+        console.warn('retry callback failed', err);
+      } finally {
+        try { btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = prev; } catch(e){}
+      }
+    });
+
+    container.appendChild(btn);
+    // focus the retry button so screen readers announce it
+    setTimeout(() => { try { btn.focus(); } catch (e) {} }, 50);
   }
+
+  resultDiv.appendChild(container);
 }
 
 function setLoading(v) {
