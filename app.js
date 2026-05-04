@@ -489,18 +489,43 @@ async function ipFallback() {
 
 // reverse geocode to get a human-readable place name for coordinates
 async function reverseGeocode(latitude, longitude) {
+  // Try Open-Meteo first
   try {
-    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&count=1&language=tr&format=json`;
+    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&count=1&language=tr`;
     const r = await fetch(url);
-    if (!r.ok) return null;
-    const d = await r.json().catch(() => null);
-    if (!d || !d.results || !d.results.length) return null;
-    const res = d.results[0];
-    return { name: res.name || '', admin1: res.admin1 || '', country: res.country || '' };
+    if (r && r.ok) {
+      const d = await r.json().catch(() => null);
+      if (d && d.results && d.results.length) {
+        const res = d.results[0];
+        return { name: res.name || res.admin1 || '', admin1: res.admin1 || '', country: res.country || '' };
+      }
+    } else {
+      console.warn('reverseGeocode open-meteo status', r && r.status);
+    }
   } catch (e) {
-    console.warn('reverseGeocode err', e);
-    return null;
+    console.warn('reverseGeocode open-meteo err', e);
   }
+
+  // Fallback: Nominatim (OpenStreetMap)
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&accept-language=tr`;
+    const r2 = await fetch(nomUrl, { headers: { 'Accept': 'application/json' } });
+    if (r2 && r2.ok) {
+      const d2 = await r2.json().catch(() => null);
+      if (d2) {
+        const addr = d2.address || {};
+        const name = addr.city || addr.town || addr.village || addr.county || d2.display_name || '';
+        const country = addr.country || '';
+        return { name, admin1: addr.state || addr.region || '', country };
+      }
+    } else {
+      console.warn('reverseGeocode nominatim status', r2 && r2.status);
+    }
+  } catch (e) {
+    console.warn('reverseGeocode nominatim err', e);
+  }
+
+  return null;
 }
 
 // Attach handler to explicit "use my location" button
