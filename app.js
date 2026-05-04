@@ -541,7 +541,9 @@ document.addEventListener('click', (ev) => {
 
 // IP-based fallback for approximate location when geolocation is denied
 async function ipFallback() {
+  // try several public IP->geo providers and be resilient to different response shapes
   const endpoints = [
+    'https://ipwho.is/',
     'https://ipapi.co/json/',
     'https://ipinfo.io/json',
     'https://ip-api.com/json/'
@@ -549,23 +551,31 @@ async function ipFallback() {
   for (const url of endpoints) {
     try {
       const r = await fetch(url);
-      if (!r.ok) continue;
+      if (!r.ok) { console.warn('ipFallback non-ok', url, r && r.status); continue; }
       const d = await r.json().catch(() => null);
       if (!d) continue;
       let lat = null, lon = null;
+      // common shapes
       if (d.latitude !== undefined) lat = Number(d.latitude);
       else if (d.lat !== undefined) lat = Number(d.lat);
-      else if (d.location && d.location.latitude) lat = Number(d.location.latitude);
+      else if (d.loc && typeof d.loc === 'string' && d.loc.indexOf(',') !== -1) {
+        const parts = d.loc.split(',').map(s=>s.trim());
+        lat = Number(parts[0]); lon = Number(parts[1]);
+      } else if (d.location && d.location.latitude) lat = Number(d.location.latitude);
+
       if (d.longitude !== undefined) lon = Number(d.longitude);
       else if (d.lon !== undefined) lon = Number(d.lon);
-      else if (d.location && d.location.longitude) lon = Number(d.location.longitude);
+      else if (!lon && d.loc && typeof d.loc === 'string' && d.loc.indexOf(',') !== -1) {
+        const parts = d.loc.split(',').map(s=>s.trim());
+        lat = Number(parts[0]); lon = Number(parts[1]);
+      } else if (d.location && d.location.longitude) lon = Number(d.location.longitude);
+
       if (lat != null && !isNaN(lat) && lon != null && !isNaN(lon)) {
-        const city = d.city || d.region || d.city || '';
-        const country = d.country_name || d.country || d.countryCode || '';
+        const city = d.city || d.region || d.region_name || d.city_name || '';
+        const country = d.country_name || d.country || d.countryCode || d.country || '';
         return { latitude: lat, longitude: lon, city, country, source: url };
       }
     } catch (e) {
-      // try next endpoint
       console.warn('ipFallback error for', url, e);
       continue;
     }
