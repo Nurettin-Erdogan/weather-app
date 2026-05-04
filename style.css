@@ -39,6 +39,10 @@ h1 {
 
 .geo-notice { display:none; margin-top:8px; padding:10px; border-radius:8px; background:#fffbeb; color:#92400e; border:1px solid #fde68a; font-size:13px; text-align:left; }
 .geo-notice.error { background:#fff1f2; color:#9f1239; border-color:#fecaca; }
+.geo-notice .geo-icon { margin-right:8px; font-size:16px; vertical-align:middle; }
+.geo-notice .geo-text { vertical-align:middle; }
+.link-button { background: transparent; border: none; color: #2563eb; text-decoration: underline; cursor: pointer; font-size: 13px; padding: 0; }
+.link-button:hover { text-decoration: none; }
 
 /* Modal styles */
 .modal-overlay { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index: 9999; }

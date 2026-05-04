@@ -404,19 +404,28 @@ function showGeoNotice(msg, isError = false) {
   const el = document.getElementById('geoNotice');
   if (!el) return;
   if (!msg) {
+    el.hidden = true;
     el.style.display = 'none';
     el.textContent = '';
     el.classList.remove('error');
+    el.removeAttribute('tabindex');
     return;
   }
-  // allow a small help link when it's an error
+
+  // Build accessible content; escape user-facing text
   if (isError) {
-    el.innerHTML = msg + ' <a href="#" id="geoHelpLink" style="text-decoration:underline;cursor:pointer">Nasıl izin verilir?</a>';
+    el.innerHTML = `<span class="geo-icon" aria-hidden="true">📍</span> <span class="geo-text">${escapeHtml(msg)}</span> <button id="geoHelpLink" class="link-button" aria-label="Konum izni nasıl açılır?">Nasıl izin verilir?</button>`;
   } else {
-    el.innerHTML = msg;
+    el.innerHTML = `<span class="geo-icon" aria-hidden="true">📍</span> <span class="geo-text">${escapeHtml(msg)}</span>`;
   }
+
+  el.hidden = false;
   el.style.display = 'block';
-  if (isError) el.classList.add('error'); else el.classList.remove('error');
+  el.classList.toggle('error', !!isError);
+
+  // Make it keyboard focusable briefly so screen readers announce it
+  el.setAttribute('tabindex', '-1');
+  setTimeout(() => { try { el.focus(); } catch(e){} }, 50);
 
   const help = document.getElementById('geoHelpLink');
   if (help) {
