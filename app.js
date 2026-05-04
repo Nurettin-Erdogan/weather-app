@@ -21,16 +21,20 @@ function setActiveUnitButton() {
 
 function normalizeForSearch(s) {
   if (!s) return '';
-  // basic turkish-safe normalization
-  return String(s).toLocaleLowerCase('tr-TR')
-    .replace(/[ıİ]/g, 'i')
-    .replace(/[ğĞ]/g, 'g')
-    .replace(/[üÜ]/g, 'u')
-    .replace(/[şŞ]/g, 's')
-    .replace(/[öÖ]/g, 'o')
-    .replace(/[çÇ]/g, 'c')
-    .replace(/[^a-z0-9ğüşöçıİĞÜŞÖÇÇ\s-]/gi, '')
-    .trim();
+  // Normalize case with Turkish locale, remove diacritics, map Turkish chars to ascii
+  let t = String(s).toLocaleLowerCase('tr-TR');
+  // decompose combined diacritics and remove them
+  try { t = t.normalize('NFD').replace(/\p{M}/gu, ''); } catch (e) { /* ignore if unsupported */ }
+  // map Turkish special chars to ascii equivalents
+  t = t.replace(/[ıİ]/g, 'i')
+       .replace(/[ğĞ]/g, 'g')
+       .replace(/[üÜ]/g, 'u')
+       .replace(/[şŞ]/g, 's')
+       .replace(/[öÖ]/g, 'o')
+       .replace(/[çÇ]/g, 'c');
+  // remove any remaining non-alphanum (keep spaces and hyphen)
+  t = t.replace(/[^a-z0-9\s-]/g, '');
+  return t.trim();
 }
 
 function debounce(fn, ms = 250) {
@@ -56,14 +60,24 @@ async function reindexLocalDistricts() {
           latitude: ic.latitude ?? ic.lat ?? null, 
           longitude: ic.longitude ?? ic.lon ?? null,
           province_norm: normalizeForSearch(province),
-          district_norm: normalizeForSearch(districtName)
+          district_norm: normalizeForSearch(districtName),
+          search_key: `${districtName} ${province}`,
+          search_key_norm: normalizeForSearch(`${districtName} ${province}`)
         });
       }
     }
     localDistrictsFlat = flat;
     if (typeof Fuse !== 'undefined') {
       try {
-        fuseSearch = new Fuse(localDistrictsFlat, { keys: ['district_norm','province_norm','district','province'], threshold: 0.35, ignoreLocation: true });
+        fuseSearch = new Fuse(localDistrictsFlat, {
+          keys: [
+            { name: 'search_key_norm', weight: 0.9 },
+            { name: 'district_norm', weight: 0.7 },
+            { name: 'province_norm', weight: 0.3 }
+          ],
+          threshold: 0.4,
+          ignoreLocation: true
+        });
       } catch(e) { fuseSearch = null; }
     }
     return true;
@@ -183,8 +197,30 @@ function selectSuggestionFromElement(el) {
 function wrapMatch(text, q) {
   if (!q) return escapeHtml(text);
   try {
-    const re = new RegExp('(' + escapeRegExp(q) + ')','gi');
-    return escapeHtml(text).replace(re, '<span class="match">$1</span>');
+    const nq = normalizeForSearch(q);
+    const normText = normalizeForSearch(text);
+    const start = (() => {
+      // build mapping from normalized indices to original string indices
+      const map = [];
+      let acc = '';
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const nch = normalizeForSearch(ch);
+        if (!nch) continue;
+        for (let k = 0; k < nch.length; k++) { map.push(i); acc += nch[k]; }
+      }
+      const idx = acc.indexOf(nq);
+      if (idx === -1) return null;
+      const s = map[idx];
+      const e = map[idx + nq.length - 1];
+      return [s, e];
+    })();
+    if (!start) return escapeHtml(text);
+    const s = start[0]; const e = start[1];
+    const before = escapeHtml(text.slice(0, s));
+    const match = escapeHtml(text.slice(s, e + 1));
+    const after = escapeHtml(text.slice(e + 1));
+    return before + `<span class="match">${match}</span>` + after;
   } catch (e) { return escapeHtml(text); }
 }
 
