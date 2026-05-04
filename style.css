@@ -185,6 +185,16 @@ body.thunder {
 .hour-row .hour-time { font-weight: 600; margin-bottom: 4px; }
 .hour-row .hour-temp { margin-top: 6px; font-weight: 600; }
 
+/* Animated open/close for hourly panel */
+.forecast-hourly { max-height: 0; overflow: hidden; opacity: 0; transform: translateY(-6px); transition: max-height 320ms ease, opacity 220ms ease, transform 220ms ease; }
+.forecast-hourly.open { max-height: 900px; opacity: 1; transform: translateY(0); }
+.forecast-hourly[aria-hidden="true"] { pointer-events: none; }
+.forecast-hourly[aria-hidden="false"] { pointer-events: auto; }
+.forecast-hourly:focus { outline: 2px solid rgba(79,70,229,0.9); }
+
+.hour-rows { display:flex; gap:8px; overflow-x:auto; }
+.no-hours { padding:12px; color:#6b7280; }
+
 /* Seviye 5: Son aramalar (recent) */
 .recent { margin-top: 12px; text-align: left; }
 .recent-title { margin-bottom: 6px; font-size: 14px; }

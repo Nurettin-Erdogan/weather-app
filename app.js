@@ -286,8 +286,8 @@ function renderWeatherFromData(weatherData, name='', country='') {
     }
   } catch (e) { console.warn('daily render err', e); }
 
-  // add hourly panel placeholder and render
-  resultDiv.innerHTML = html + dailyHtml + '<div id="hourlyPanel" class="forecast-hourly" style="display:none;"></div>';
+  // add hourly panel placeholder and render (aria-hidden initially)
+  resultDiv.innerHTML = html + dailyHtml + '<div id="hourlyPanel" class="forecast-hourly" aria-hidden="true" tabindex="-1"></div>';
 
   // attach click handlers to daily cards to show hourly details
   try {
@@ -296,19 +296,37 @@ function renderWeatherFromData(weatherData, name='', country='') {
     const hourTimes = hourly.time || [];
     const hourlyPanel = document.getElementById('hourlyPanel');
     if (hourlyPanel) {
-      // close button
+      // build container, close button and rows
       hourlyPanel.innerHTML = '';
       const closeBtn = document.createElement('button');
-      closeBtn.className = 'unit-btn';
+      closeBtn.className = 'unit-btn hourly-close';
       closeBtn.textContent = 'Kapat';
       closeBtn.style.marginBottom = '8px';
-      closeBtn.addEventListener('click', () => { hourlyPanel.style.display = 'none'; document.querySelectorAll('.forecast-daily .card').forEach(c=>c.setAttribute('aria-expanded','false')); });
       hourlyPanel.appendChild(closeBtn);
       const rowsContainer = document.createElement('div');
       rowsContainer.className = 'hour-rows';
       hourlyPanel.appendChild(rowsContainer);
 
+      // accessibility attributes
+      hourlyPanel.setAttribute('role', 'region');
+      hourlyPanel.setAttribute('aria-label', 'Saatlik tahmin');
+      hourlyPanel.setAttribute('aria-hidden', 'true');
+      hourlyPanel.tabIndex = -1;
+
       const cards = resultDiv.querySelectorAll('.forecast-daily .card');
+      let lastOpenedCard = null;
+      function closeHourly() {
+        hourlyPanel.classList.remove('open');
+        hourlyPanel.setAttribute('aria-hidden', 'true');
+        hourlyPanel.dataset.date = '';
+        cards.forEach(c => c.setAttribute('aria-expanded', 'false'));
+        if (lastOpenedCard) { try { lastOpenedCard.focus(); } catch (e) {} }
+        lastOpenedCard = null;
+        document.removeEventListener('keydown', hourlyEscHandler);
+      }
+      function hourlyEscHandler(e) { if (e.key === 'Escape') closeHourly(); }
+      closeBtn.addEventListener('click', () => closeHourly());
+
       cards.forEach((card, idx) => {
         card.setAttribute('role','button');
         card.setAttribute('tabindex','0');
@@ -317,8 +335,8 @@ function renderWeatherFromData(weatherData, name='', country='') {
           const date = dailyTimes[idx];
           if (!date) return;
           // toggle
-          if (hourlyPanel.dataset.date === date && hourlyPanel.style.display === 'block') {
-            hourlyPanel.style.display = 'none';
+          if (hourlyPanel.dataset.date === date && hourlyPanel.classList.contains('open')) {
+            closeHourly();
             card.setAttribute('aria-expanded','false');
             return;
           }
@@ -339,6 +357,14 @@ function renderWeatherFromData(weatherData, name='', country='') {
           }
           // render
           rowsContainer.innerHTML = '';
+          if (!hrs.length) {
+            rowsContainer.innerHTML = '<div class="no-hours">Saatlik veri bulunamadı.</div>';
+            hourlyPanel.classList.remove('open');
+            hourlyPanel.setAttribute('aria-hidden', 'true');
+            hourlyPanel.dataset.date = '';
+            cards.forEach(c => c.setAttribute('aria-expanded','false'));
+            return;
+          }
           hrs.forEach(h => {
             const hr = document.createElement('div');
             hr.className = 'hour-row';
@@ -347,11 +373,16 @@ function renderWeatherFromData(weatherData, name='', country='') {
             rowsContainer.appendChild(hr);
           });
           hourlyPanel.dataset.date = date;
-          hourlyPanel.style.display = hrs.length ? 'block' : 'none';
+          hourlyPanel.classList.add('open');
+          hourlyPanel.setAttribute('aria-hidden', 'false');
           // collapse others
           cards.forEach(c => c.setAttribute('aria-expanded','false'));
           card.setAttribute('aria-expanded','true');
-          if (hrs.length) hourlyPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          lastOpenedCard = card;
+          // focus close button for keyboard users
+          try { closeBtn.focus(); } catch(e) {}
+          document.addEventListener('keydown', hourlyEscHandler);
+          hourlyPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
         card.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); card.click(); } });
       });
