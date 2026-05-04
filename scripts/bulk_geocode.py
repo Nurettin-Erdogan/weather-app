@@ -69,6 +69,30 @@ def normalize_text(s):
     return s2.strip().lower()
 
 
+def candidate_is_valid(candidate):
+    """Return (True, None) if candidate looks like a valid Turkish result.
+    Performs basic numeric and bounding-box checks and a loose country check.
+    """
+    if not candidate:
+        return False, 'missing'
+    lat = candidate.get('latitude')
+    lon = candidate.get('longitude')
+    if lat in (None, '') or lon in (None, ''):
+        return False, 'missing'
+    try:
+        latf = float(lat)
+        lonf = float(lon)
+    except Exception:
+        return False, 'not-numeric'
+    # approximate Turkey bbox
+    if not (35 <= latf <= 43 and 25 <= lonf <= 45):
+        return False, 'outside-bbox'
+    country = (candidate.get('country') or '').lower()
+    if country and ('tur' not in country and 'tr' not in country and 'tür' not in country):
+        return False, 'country-mismatch'
+    return True, None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Bulk geocode Turkish districts")
     parser.add_argument("--data", default="data/il-ilce.json", help="input dataset path")
@@ -147,6 +171,10 @@ def main():
                 if not best:
                     best = candidates[0]
                 if best:
+                    valid, reason = candidate_is_valid(best)
+                    if not valid:
+                        print(f"    -> candidate rejected ({reason}): {best.get('name')} / {best.get('country')} -> {best.get('latitude')},{best.get('longitude')}")
+                        continue
                     chosen = best
                     cache[key] = {
                         'latitude': best.get('latitude'),
