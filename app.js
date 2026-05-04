@@ -2,6 +2,10 @@ const cityInput = document.getElementById('cityInput');
 const searchBtn = document.getElementById('searchBtn');
 const resultDiv = document.getElementById('result');
 const suggestionsContainer = document.getElementById('suggestions');
+if (suggestionsContainer) {
+  suggestionsContainer.setAttribute('role', 'listbox');
+  suggestionsContainer.setAttribute('aria-label', 'Arama önerileri');
+}
 const clearBtn = document.getElementById('clearBtn');
 const unitCBtn = document.getElementById('unitCBtn');
 const unitFBtn = document.getElementById('unitFBtn');
@@ -138,26 +142,28 @@ function renderSuggestions(items, q) {
   suggestionsContainer.innerHTML = '';
   if (!items || items.length === 0) { suggestionsContainer.innerHTML = '<div class="suggestion-item no-results">Eşleşen sonuç yok</div>'; return; }
   items.forEach((it, i) => {
-    const name = escapeHtml(it.name || '');
-    const sub = escapeHtml(it.admin1 || '');
+    const rawName = it.name || '';
+    const rawSub = it.admin1 || '';
     const lat = (it.latitude !== undefined && it.latitude !== null) ? it.latitude : '';
     const lon = (it.longitude !== undefined && it.longitude !== null) ? it.longitude : '';
     const div = document.createElement('div');
     div.className = 'suggestion-item';
     div.tabIndex = 0;
     div.setAttribute('role','option');
+    div.setAttribute('aria-selected', 'false');
     div.dataset.idx = String(i);
     div.dataset.name = it.name || '';
     div.dataset.admin1 = it.admin1 || '';
     div.dataset.lat = lat;
     div.dataset.lon = lon;
-    div.innerHTML = `<div class="suggestion-main">${wrapMatch(name, q)}</div>${sub ? `<div class="suggestion-sub">${wrapMatch(sub, q)}</div>` : ''}`;
+    div.innerHTML = `<div class="suggestion-main">${wrapMatch(rawName, q)}</div>${rawSub ? `<div class="suggestion-sub">${wrapMatch(rawSub, q)}</div>` : ''}`;
     div.addEventListener('click', () => selectSuggestionFromElement(div));
+    div.addEventListener('focus', () => { if (suggestionsContainer) suggestionsContainer.querySelectorAll('.suggestion-item').forEach(si=>si.setAttribute('aria-selected','false')); div.setAttribute('aria-selected','true'); });
     div.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectSuggestionFromElement(div); }
       else if (ev.key === 'ArrowDown') { ev.preventDefault(); if (div.nextElementSibling) div.nextElementSibling.focus(); }
       else if (ev.key === 'ArrowUp') { ev.preventDefault(); if (div.previousElementSibling) div.previousElementSibling.focus(); else cityInput.focus(); }
-      else if (ev.key === 'Escape') { cityInput.focus(); suggestionsContainer.innerHTML = ''; }
+      else if (ev.key === 'Escape') { cityInput.focus(); if (suggestionsContainer) suggestionsContainer.innerHTML = ''; }
     });
     suggestionsContainer.appendChild(div);
   });
