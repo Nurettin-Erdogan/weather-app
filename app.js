@@ -345,8 +345,12 @@ function setLoading(v) {
   controls.forEach(el => { if (el) el.disabled = !!v; });
   if (!resultDiv) return;
   if (v) {
-    resultDiv.innerHTML = '<div class="loading" role="status" aria-label="Yükleniyor"></div>';
+    resultDiv.setAttribute('aria-busy', 'true');
+    resultDiv.innerHTML = '<div class="loading-wrapper" role="status" aria-live="polite"><div class="loading" aria-hidden="true"></div><div class="loading-message">Yükleniyor...</div></div>';
+    document.body.classList.add('loading-active');
   } else {
+    resultDiv.removeAttribute('aria-busy');
+    document.body.classList.remove('loading-active');
     if (!lastWeatherData) resultDiv.innerHTML = '<p>Bir şehir arat.</p>';
   }
 }
@@ -563,7 +567,11 @@ if (useLocationBtn) {
                   placeName = rev.name || rev.admin1 || '';
                   country = rev.country || '';
                 }
-                if (placeName) showGeoNotice(`Konum: ${placeName}. Hava yükleniyor...`, false);
+                if (placeName) {
+                  showGeoNotice(`Konum: ${placeName}. Hava yükleniyor...`, false);
+                } else {
+                  showGeoNotice('Konum bulundu. Yer adı alınamadı. Hava yükleniyor...', false);
+                }
                 fetchAndRender(latitude, longitude, placeName, country);
                 try { saveRecent('Konumum' + (placeName ? `: ${placeName}` : '')); } catch(e) {}
               } catch (e) {
@@ -593,7 +601,11 @@ if (useLocationBtn) {
                           country = country || rev.country || '';
                         }
                       }
-                      showGeoNotice(placeName ? `Yaklaşık konum: ${placeName}. Hava yükleniyor...` : 'Yaklaşık konum tespit edildi. Hava yükleniyor...', false);
+                      if (placeName) {
+                        showGeoNotice(`Yaklaşık konum: ${placeName}. Hava yükleniyor...`, false);
+                      } else {
+                        showGeoNotice(`Yaklaşık konum tespit edildi (lat: ${loc.latitude.toFixed(2)}, lon: ${loc.longitude.toFixed(2)}). Hava yükleniyor...`, false);
+                      }
                       fetchAndRender(loc.latitude, loc.longitude, placeName, country);
                       try { saveRecent('IP konumu' + (placeName ? `: ${placeName}` : '')); } catch(e) {}
                     } catch (e) {
