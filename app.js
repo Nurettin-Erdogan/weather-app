@@ -10,6 +10,20 @@ const clearBtn = document.getElementById('clearBtn');
 const unitCBtn = document.getElementById('unitCBtn');
 const unitFBtn = document.getElementById('unitFBtn');
 
+// internal id counter for suggestion items
+let suggestionIdCounter = 0;
+
+// ensure combobox attributes exist (HTML already sets most, keep stateful here)
+if (cityInput) {
+  cityInput.setAttribute('role', 'combobox');
+  cityInput.setAttribute('aria-autocomplete', 'list');
+  cityInput.setAttribute('aria-controls', 'suggestions');
+  cityInput.setAttribute('aria-expanded', 'false');
+  cityInput.setAttribute('aria-haspopup', 'listbox');
+}
+if (unitCBtn) unitCBtn.setAttribute('role','radio');
+if (unitFBtn) unitFBtn.setAttribute('role','radio');
+
 let unit = localStorage.getItem('weather_unit') || 'C';
 let lastWeatherData = null;
 let lastLocation = { latitude: null, longitude: null, name: '', country: '' };
@@ -19,8 +33,14 @@ let localDistrictsFlat = [];
 let fuseSearch = null;
 
 function setActiveUnitButton() {
-  if (unitCBtn) unitCBtn.setAttribute('aria-pressed', unit === 'C' ? 'true' : 'false');
-  if (unitFBtn) unitFBtn.setAttribute('aria-pressed', unit === 'F' ? 'true' : 'false');
+  if (unitCBtn) {
+    unitCBtn.setAttribute('aria-pressed', unit === 'C' ? 'true' : 'false');
+    unitCBtn.setAttribute('aria-checked', unit === 'C' ? 'true' : 'false');
+  }
+  if (unitFBtn) {
+    unitFBtn.setAttribute('aria-pressed', unit === 'F' ? 'true' : 'false');
+    unitFBtn.setAttribute('aria-checked', unit === 'F' ? 'true' : 'false');
+  }
 }
 
 function normalizeForSearch(s) {
@@ -149,6 +169,8 @@ function renderSuggestions(items, q) {
     const div = document.createElement('div');
     div.className = 'suggestion-item';
     div.tabIndex = 0;
+    // ensure unique id to reference from combobox
+    div.id = `suggestion-${suggestionIdCounter++}`;
     div.setAttribute('role','option');
     div.setAttribute('aria-selected', 'false');
     div.dataset.idx = String(i);

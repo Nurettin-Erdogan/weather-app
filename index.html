@@ -22,8 +22,8 @@
     </header>
 
     <form id="searchForm" class="search-box" role="search" aria-label="Hava durumu arama">
-      <input type="text" id="cityInput" placeholder="İlçe veya şehir adı gir..." aria-label="Şehir veya ilçe adı" autocomplete="off" autofocus />
-      <button id="clearBtn" class="clear-btn" aria-label="Temizle" title="Temizle">✖</button>
+      <input type="text" id="cityInput" placeholder="İlçe veya şehir adı gir..." aria-label="Şehir veya ilçe adı" autocomplete="off" autofocus role="combobox" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" aria-haspopup="listbox" />
+      <button id="clearBtn" type="button" class="clear-btn" aria-label="Temizle" title="Temizle">✖</button>
       <button id="searchBtn" type="submit">Ara</button>
     </form>
 
@@ -32,8 +32,8 @@
         <button id="useLocationBtn" class="geo-btn" aria-label="Konumumu kullan">📍 Konumumu Kullan</button>
       </div>
       <div class="unit-toggle" role="radiogroup" aria-label="Sıcaklık birimi">
-        <button id="unitCBtn" class="unit-btn" aria-pressed="false">°C</button>
-        <button id="unitFBtn" class="unit-btn" aria-pressed="false">°F</button>
+        <button id="unitCBtn" type="button" role="radio" aria-checked="true" class="unit-btn">°C</button>
+        <button id="unitFBtn" type="button" role="radio" aria-checked="false" class="unit-btn">°F</button>
       </div>
     </div>
 
