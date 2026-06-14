@@ -25,7 +25,7 @@ https://nurettin-erdogan.github.io/weather-app/
  
 ## Ekran Görüntüsü
 
-![weather-app](ss/screenshot.png)
+![weather-app](ss/screenshot.png.png)
 
 ## Kullanılan Teknolojiler
 
