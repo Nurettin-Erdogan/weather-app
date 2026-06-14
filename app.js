@@ -868,54 +868,28 @@ function setLoading(isLoading) {
     document.body.classList.remove('loading-active');
   }
 }
-
 /* =========================================================
-   SON ARAMALAR
+   SON ARAMALAR KAPALI
 ========================================================= */
 
 function getRecentList() {
-  try {
-    const arr = JSON.parse(localStorage.getItem('weather_recent') || '[]');
-    if (!Array.isArray(arr)) return [];
-
-    return arr
-      .map(item => String(item || '').trim())
-      .filter(Boolean)
-      .filter(item => !/^ip konumu\s*:/i.test(item));
-  } catch (error) {
-    return [];
-  }
+  return [];
 }
 
 function saveRecent(value) {
-  try {
-    if (!value) return;
-
-    const key = 'weather_recent';
-    let arr = getRecentList();
-
-    arr = arr.filter(item => normalizeForSearch(item) !== normalizeForSearch(value));
-    arr.unshift(value);
-
-    if (arr.length > 5) arr = arr.slice(0, 5);
-
-    localStorage.setItem(key, JSON.stringify(arr));
-    renderRecent();
-  } catch (error) {
-    debugWarn('Son arama kaydetme hatası:', error);
-  }
+  // Arama geçmişi kaydedilmesin diye bilinçli olarak boş bırakıldı.
+  localStorage.removeItem('weather_recent');
 }
 
 function renderRecent() {
+  // Daha önce kaydedilmiş geçmiş varsa temizle.
+  localStorage.removeItem('weather_recent');
+
   const container = document.getElementById('recent');
-  if (!container) return;
-
-  const arr = getRecentList();
-
-  if (!arr.length) {
+  if (container) {
     container.innerHTML = '';
-    return;
   }
+}
 
   container.innerHTML = `
     <div class="recent-head">
