@@ -509,7 +509,7 @@ async function fetchAndRender(latitude, longitude, name = '', country = '') {
     renderWeatherFromData(weather, name, country);
   } catch (error) {
     debugError('fetchAndRender genel hata:', error);
-    showResultError('Hava verisi alınamadı. Ağ bağlantınızı kontrol edip tekrar deneyin.', () => fetchAndRender(latitude, longitude, name, country));
+    showResultError('Hava servisine şu anda ulaşılamadı. İnternet bağlantınızı kontrol edin veya birkaç saniye sonra tekrar deneyin.', () => fetchAndRender(latitude, longitude, name, country));
   } finally {
     setLoading(false);
   }
@@ -517,7 +517,9 @@ async function fetchAndRender(latitude, longitude, name = '', country = '') {
 
 function renderWeatherFromData(weatherData, name = '', country = '') {
   const current = weatherData.current_weather;
-
+const hintHtml = dailyHtml
+  ? '<p class="forecast-hint">Günlük kartlara tıklayarak saatlik tahmini görebilirsin.</p>'
+  : '';
   if (!current) {
     resultDiv.innerHTML = '<p>Hava verisi yok.</p>';
     return;
@@ -545,8 +547,11 @@ function renderWeatherFromData(weatherData, name = '', country = '') {
 
   const dailyHtml = buildDailyHtml(weatherData);
 
-  resultDiv.innerHTML = html + dailyHtml + '<div id="hourlyPanel" class="forecast-hourly" aria-hidden="true" tabindex="-1"></div>';
-  attachHourlyPanel(weatherData);
+resultDiv.innerHTML =
+  html +
+  dailyHtml +
+  hintHtml +
+  '<div id="hourlyPanel" class="forecast-hourly" aria-hidden="true" tabindex="-1"></div>';  attachHourlyPanel(weatherData);
 }
 
 function buildDailyHtml(weatherData) {
@@ -905,18 +910,29 @@ function renderRecent() {
     return;
   }
 
-  container.innerHTML = `
+  cont.innerHTML = `
+  <div class="recent-head">
     <div class="recent-title"><strong>Son Aramalar</strong></div>
-    <div class="recent-list">
-      ${arr.map(item => `<button class="recent-item" type="button">${escapeHtml(item)}</button>`).join('')}
-    </div>
-  `;
+    <button id="clearRecentBtn" class="clear-recent-btn" type="button">Temizle</button>
+  </div>
+  <div class="recent-list">
+    ${arr.map(a => `<button class="recent-item" type="button">${escapeHtml(a)}</button>`).join('')}
+  </div>
+`;
 
   container.querySelectorAll('.recent-item').forEach(button => {
     button.addEventListener('click', () => {
       cityInput.value = button.textContent;
       handleSearch();
     });
+  });
+}
+const clearRecentBtn = document.getElementById('clearRecentBtn');
+
+if (clearRecentBtn) {
+  clearRecentBtn.addEventListener('click', () => {
+    localStorage.removeItem('weather_recent');
+    renderRecent();
   });
 }
 
