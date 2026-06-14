@@ -22,6 +22,13 @@ https://nurettin-erdogan.github.io/weather-app/
 * Hava durumuna göre değişen arka plan
 * Mobil ve masaüstü uyumlu arayüz
 
+##ekran görüntüsü 
+
+## Ekran Görüntüsü
+
+![Hava Durumu Uygulaması](ss/ekran.png)
+
+
 ## Kullanılan Teknolojiler
 
 * HTML
