@@ -1,0 +1,85 @@
+import json
+import math
+import unittest
+from collections import defaultdict
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA_PATH = ROOT / "data" / "il-ilce-with-loc.json"
+
+
+def distance_km(lat1, lon1, lat2, lon2):
+    radius = 6371
+    lat_delta = math.radians(lat2 - lat1)
+    lon_delta = math.radians(lon2 - lon1)
+    value = (
+        math.sin(lat_delta / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(lon_delta / 2) ** 2
+    )
+    return radius * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value))
+
+
+class CoordinateQualityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        payload = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+        cls.rows = []
+        for province in payload["data"]:
+            for district in province["ilceler"]:
+                cls.rows.append(
+                    {
+                        "province": province["il_adi"],
+                        "district": district["ilce_adi"],
+                        "latitude": float(district["latitude"]),
+                        "longitude": float(district["longitude"]),
+                    }
+                )
+
+    def test_expected_record_count(self):
+        self.assertEqual(len(self.rows), 973)
+
+    def test_all_coordinates_are_inside_turkey_bounds(self):
+        invalid = [
+            row
+            for row in self.rows
+            if not (35 <= row["latitude"] <= 43 and 25 <= row["longitude"] <= 45)
+        ]
+        self.assertEqual(invalid, [])
+
+    def test_coordinates_are_not_shared_across_provinces(self):
+        groups = defaultdict(list)
+        for row in self.rows:
+            groups[(row["latitude"], row["longitude"])].append(row)
+        invalid = [
+            rows
+            for rows in groups.values()
+            if len({row["province"] for row in rows}) > 1
+        ]
+        self.assertEqual(invalid, [])
+
+    def test_districts_are_close_to_their_province_cluster(self):
+        by_province = defaultdict(list)
+        for row in self.rows:
+            by_province[row["province"]].append(row)
+
+        invalid = []
+        for province, rows in by_province.items():
+            latitudes = sorted(row["latitude"] for row in rows)
+            longitudes = sorted(row["longitude"] for row in rows)
+            middle = len(rows) // 2
+            center = (latitudes[middle], longitudes[middle])
+            for row in rows:
+                distance = distance_km(
+                    center[0], center[1], row["latitude"], row["longitude"]
+                )
+                if distance > 220:
+                    invalid.append((province, row["district"], round(distance)))
+
+        self.assertEqual(invalid, [])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -46,9 +46,9 @@
           "nufus": "389.319",
           "erkek_nufus": "187.172",
           "kadin_nufus": "202.147",
-          "latitude": 38.46967,
-          "longitude": 28.18319,
-          "_geocoded_name": "Çukuroba"
+          "latitude": 37.0485,
+          "longitude": 35.2805,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "1",
@@ -94,9 +94,9 @@
           "nufus": "23.321",
           "erkek_nufus": "11.940",
           "kadin_nufus": "11.381",
-          "latitude": 36.58204,
-          "longitude": 35.37014,
-          "_geocoded_name": "Küçükkarataş"
+          "latitude": 36.5627,
+          "longitude": 35.3851,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "1",
@@ -154,9 +154,9 @@
           "nufus": "792.536",
           "erkek_nufus": "394.736",
           "kadin_nufus": "397.800",
-          "latitude": 36.98747,
-          "longitude": 35.30592,
-          "_geocoded_name": "Seyhan"
+          "latitude": 36.9976,
+          "longitude": 35.3013,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "1",
@@ -190,9 +190,9 @@
           "nufus": "407.054",
           "erkek_nufus": "204.804",
           "kadin_nufus": "202.250",
-          "latitude": 36.97439,
-          "longitude": 35.35916,
-          "_geocoded_name": "Yüreğir"
+          "latitude": 36.9971,
+          "longitude": 35.3581,
+          "_coordinate_source": "bunick:town"
         }
       ],
       "kisa_bilgi": "Ülkenin en büyük şehirlerinden biri olan Adana, Toros dağlarının güneyinde bulunan ve Mersin, Osmaniye, Hatay illerini içine alan Çukurova'nın merkezinde, Seyhan nehri üzerinde yer alır"
@@ -219,9 +219,9 @@
           "nufus": "312.207",
           "erkek_nufus": "156.565",
           "kadin_nufus": "155.642",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 37.7636,
+          "longitude": 38.2772,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "2",
@@ -344,9 +344,9 @@
           "nufus": "319.574",
           "erkek_nufus": "159.747",
           "kadin_nufus": "159.827",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 38.7568,
+          "longitude": 30.5387,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "3",
@@ -577,9 +577,9 @@
           "nufus": "150.335",
           "erkek_nufus": "76.558",
           "kadin_nufus": "73.777",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 39.7081,
+          "longitude": 43.0488,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "4",
@@ -637,9 +637,9 @@
           "nufus": "118.481",
           "erkek_nufus": "62.317",
           "kadin_nufus": "56.164",
-          "latitude": 39.22493,
-          "longitude": 42.85693,
-          "_geocoded_name": "Patnos"
+          "latitude": 39.2395,
+          "longitude": 42.8629,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "4",
@@ -690,9 +690,9 @@
           "nufus": "147.380",
           "erkek_nufus": "73.745",
           "kadin_nufus": "73.635",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 40.6522,
+          "longitude": 35.8341,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "5",
@@ -899,9 +899,9 @@
           "nufus": "606.472",
           "erkek_nufus": "302.537",
           "kadin_nufus": "303.935",
-          "latitude": 39.95328,
-          "longitude": 32.63285,
-          "_geocoded_name": "Etimesgut"
+          "latitude": 39.9471,
+          "longitude": 32.66,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "6",
@@ -983,9 +983,9 @@
           "nufus": "942.884",
           "erkek_nufus": "461.863",
           "kadin_nufus": "481.021",
-          "latitude": 40.00132,
-          "longitude": 32.87238,
-          "_geocoded_name": "Keçiören"
+          "latitude": 39.9778,
+          "longitude": 32.8678,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "6",
@@ -1007,9 +1007,9 @@
           "nufus": "682.420",
           "erkek_nufus": "340.018",
           "kadin_nufus": "342.402",
-          "latitude": 39.94044,
-          "longitude": 32.91012,
-          "_geocoded_name": "Mamak"
+          "latitude": 39.9349,
+          "longitude": 32.8953,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "6",
@@ -1043,9 +1043,9 @@
           "nufus": "159.676",
           "erkek_nufus": "79.639",
           "kadin_nufus": "80.037",
-          "latitude": 40.03203,
-          "longitude": 32.89528,
-          "_geocoded_name": "Pursaklar"
+          "latitude": 40.1052,
+          "longitude": 32.8839,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "6",
@@ -1079,9 +1079,9 @@
           "nufus": "703.809",
           "erkek_nufus": "342.333",
           "kadin_nufus": "361.476",
-          "latitude": 39.97787,
-          "longitude": 32.80147,
-          "_geocoded_name": "Yenimahalle"
+          "latitude": 39.9623,
+          "longitude": 32.8102,
+          "_coordinate_source": "bunick:town"
         }
       ],
       "kisa_bilgi": "Bolu, Çankırı, Kırıkkale, Kırşehir, Aksaray, Konya ve Eskişehir illeri ile çevrili ve Türkiye'nin başkenti Ankara, Cumhuriyetin kuruluşundan bu yana hızla gelişme göstermiştir. Şehrin amblemi, Hitit uygarlığının da simgesi olan Hitit Güneş Kursu'dur."
@@ -1312,9 +1312,9 @@
           "nufus": "521.183",
           "erkek_nufus": "253.955",
           "kadin_nufus": "267.228",
-          "latitude": 36.89157,
-          "longitude": 30.76498,
-          "_geocoded_name": "Muratpaşa"
+          "latitude": 36.852,
+          "longitude": 30.7573,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "7",
@@ -1353,9 +1353,9 @@
           "nufus": "34.537",
           "erkek_nufus": "17.763",
           "kadin_nufus": "16.774",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 41.1817,
+          "longitude": 41.821,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "8",
@@ -1389,9 +1389,9 @@
           "nufus": "22.030",
           "erkek_nufus": "11.235",
           "kadin_nufus": "10.795",
-          "latitude": 41.35792,
-          "longitude": 41.66579,
-          "_geocoded_name": "Borçka"
+          "latitude": 41.3584,
+          "longitude": 41.6765,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "8",
@@ -1449,9 +1449,9 @@
           "nufus": "19.510",
           "erkek_nufus": "9.836",
           "kadin_nufus": "9.674",
-          "latitude": 40.82042,
-          "longitude": 41.53743,
-          "_geocoded_name": "Yusufeli"
+          "latitude": 40.8107,
+          "longitude": 41.5271,
+          "_coordinate_source": "bunick:town"
         }
       ],
       "kisa_bilgi": "Ülkemizin Gürcistan ile sınırında bulunan, Doğu Karadeniz bölümündeki bu yeşil şehir, kültürel olarak rengarenk. Nüfus Hemşinliler, Gürcüler, Lazlar ile Ahıska ve Kıpçak Türklerinden meydana geliyor."
@@ -1514,9 +1514,9 @@
           "nufus": "93.876",
           "erkek_nufus": "47.635",
           "kadin_nufus": "46.241",
-          "latitude": 37.38496,
-          "longitude": 27.25643,
-          "_geocoded_name": "Didim"
+          "latitude": 37.3552,
+          "longitude": 27.2771,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "9",
@@ -1526,9 +1526,9 @@
           "nufus": "300.225",
           "erkek_nufus": "148.301",
           "kadin_nufus": "151.924",
-          "latitude": 41.44081,
-          "longitude": 41.92631,
-          "_geocoded_name": "Efeler"
+          "latitude": 37.8676,
+          "longitude": 27.9004,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "9",
@@ -1807,9 +1807,9 @@
           "nufus": "16.217",
           "erkek_nufus": "8.128",
           "kadin_nufus": "8.089",
-          "latitude": 39.39016,
-          "longitude": 26.84127,
-          "_geocoded_name": "Gömeç"
+          "latitude": 39.365,
+          "longitude": 26.8686,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "10",
@@ -1855,9 +1855,9 @@
           "nufus": "185.118",
           "erkek_nufus": "90.286",
           "kadin_nufus": "94.832",
-          "latitude": -7.46472,
-          "longitude": 110.21417,
-          "_geocoded_name": "Karesidenan"
+          "latitude": 39.6609,
+          "longitude": 27.8849,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "10",
@@ -1956,9 +1956,9 @@
           "nufus": "86.442",
           "erkek_nufus": "47.751",
           "kadin_nufus": "38.691",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 40.1392,
+          "longitude": 29.9763,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "11",
@@ -2069,9 +2069,9 @@
           "nufus": "168.953",
           "erkek_nufus": "84.307",
           "kadin_nufus": "84.646",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 38.8846,
+          "longitude": 40.4977,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "12",
@@ -2081,9 +2081,9 @@
           "nufus": "8.243",
           "erkek_nufus": "4.315",
           "kadin_nufus": "3.928",
-          "latitude": 65.33333,
-          "longitude": 18.58333,
-          "_geocoded_name": "Adakliden"
+          "latitude": 39.2285335,
+          "longitude": 40.4826578,
+          "_coordinate_source": "nominatim:administrative"
         },
         {
           "plaka_kodu": "12",
@@ -6682,9 +6682,9 @@
           "nufus": "22.136",
           "erkek_nufus": "11.072",
           "kadin_nufus": "11.064",
-          "latitude": 41.89211,
-          "longitude": 33.00439,
-          "_geocoded_name": "Cide"
+          "latitude": 41.8976,
+          "longitude": 32.9846,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "37",
@@ -6778,9 +6778,9 @@
           "nufus": "5.431",
           "erkek_nufus": "2.799",
           "kadin_nufus": "2.632",
-          "latitude": 34.23222,
-          "longitude": 132.56657,
-          "_geocoded_name": "Kure"
+          "latitude": 41.8059,
+          "longitude": 33.7102,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "37",
@@ -6939,9 +6939,9 @@
           "nufus": "404.780",
           "erkek_nufus": "201.860",
           "kadin_nufus": "202.920",
-          "latitude": 38.77147,
-          "longitude": 35.5725,
-          "_geocoded_name": "Kocasinan"
+          "latitude": 38.75,
+          "longitude": 35.471,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "38",
@@ -6951,9 +6951,9 @@
           "nufus": "589.852",
           "erkek_nufus": "294.102",
           "kadin_nufus": "295.750",
-          "latitude": 38.75,
-          "longitude": 35.45,
-          "_geocoded_name": "Melikgazi"
+          "latitude": 38.7118,
+          "longitude": 35.4994,
+          "_coordinate_source": "bunick:town"
         },
         {
           "plaka_kodu": "38",
@@ -6999,9 +6999,9 @@
           "nufus": "9.321",
           "erkek_nufus": "4.791",
           "kadin_nufus": "4.530",
-          "latitude": 30.99806,
-          "longitude": 55.995,
-          "_geocoded_name": "Sīrīz"
+          "latitude": 38.4802377,
+          "longitude": 36.4970264,
+          "_coordinate_source": "nominatim:administrative"
         },
         {
           "plaka_kodu": "38",
@@ -7076,9 +7076,9 @@
           "nufus": "105.525",
           "erkek_nufus": "53.431",
           "kadin_nufus": "52.094",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 41.7355,
+          "longitude": 27.2244,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "39",
@@ -7148,9 +7148,9 @@
           "nufus": "17.806",
           "erkek_nufus": "9.442",
           "kadin_nufus": "8.364",
-          "latitude": 38.12471,
-          "longitude": 41.40663,
-          "_geocoded_name": "Pınarhisar"
+          "latitude": 41.6254954,
+          "longitude": 27.5157753,
+          "_coordinate_source": "nominatim:administrative"
         },
         {
           "plaka_kodu": "39",
@@ -7189,9 +7189,9 @@
           "nufus": "160.737",
           "erkek_nufus": "79.366",
           "kadin_nufus": "81.371",
-          "latitude": 40.12954,
-          "longitude": 26.42075,
-          "_geocoded_name": "Merkez"
+          "latitude": 39.146,
+          "longitude": 34.1605,
+          "_coordinate_source": "bunick:province"
         },
         {
           "plaka_kodu": "40",
@@ -7314,9 +7314,9 @@
           "nufus": "219.546",
           "erkek_nufus": "111.225",
           "kadin_nufus": "108.321",
-          "latitude": 43.98167,
-          "longitude": 21.70389,
-          "_geocoded_name": "Darica"
+          "latitude": 40.7574799,
+          "longitude": 29.3840563,
+          "_coordinate_source": "nominatim:administrative"
         },
         {
           "plaka_kodu": "41",

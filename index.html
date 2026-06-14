@@ -1,75 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hava Durumu — Hızlı ve Güzel</title>
-  <meta name="description" content="Hızlı ve basit hava durumu uygulaması — Türkiye il/ilçe araması, anlık ve 5 günlük tahmin." />
-  <meta name="theme-color" content="#74ebd5" />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="./style.css?v=999" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Hava Durumu | Türkiye İl ve İlçe Tahminleri</title>
+  <meta name="description" content="Türkiye il ve ilçeleri için anlık hava durumu, saatlik grafikler, 5 günlük tahmin, hava kalitesi ve yağmur uyarıları.">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:title" content="Hava Durumu">
+  <meta property="og:description" content="Türkiye için hızlı ve ayrıntılı hava tahminleri.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="./ss/2.png">
+  <link rel="canonical" href="https://nurettin-erdogan.github.io/weather-app/">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://ipwho.is; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <div class="logo" aria-hidden="true">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="#FDBA74"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="#F97316" stroke-width="1.2" stroke-linecap="round"/></svg>
-      </div>
-      <div>
-        <h1>Hava Durumu</h1>
-        <p class="tagline">İlçe bazlı arama, hızlı tahminler</p>
+  <div class="weather-backdrop" aria-hidden="true">
+    <span class="orb orb-one"></span>
+    <span class="orb orb-two"></span>
+    <span class="orb orb-three"></span>
+  </div>
+
+  <div id="offlineBanner" class="connection-banner" role="status" aria-live="polite" hidden></div>
+
+  <main class="app-shell">
+    <header class="app-header">
+      <a class="brand" href="./" aria-label="Hava Durumu ana sayfa">
+        <span class="brand-mark" aria-hidden="true">☀</span>
+        <span>
+          <strong data-i18n="appTitle">Hava Durumu</strong>
+          <small data-i18n="tagline">Türkiye için hızlı, ayrıntılı ve güvenilir tahminler</small>
+        </span>
+      </a>
+      <div class="header-actions">
+        <button id="installBtn" class="icon-action install-action" type="button" data-i18n-title="install" hidden>＋</button>
+        <button id="languageBtn" class="text-action" type="button" data-i18n="language">English</button>
+        <button id="themeBtn" class="icon-action" type="button" data-i18n-title="theme" aria-label="Temayı değiştir">◐</button>
       </div>
     </header>
 
-    <form id="searchForm" class="search-box" role="search" aria-label="Hava durumu arama">
-      <input type="text" id="cityInput" placeholder="İlçe veya şehir adı gir..." aria-label="Şehir veya ilçe adı" autocomplete="off" autofocus role="combobox" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" aria-haspopup="listbox" />
-      <button id="clearBtn" type="button" class="clear-btn" aria-label="Temizle" title="Temizle">✖</button>
-      <button id="searchBtn" type="submit">Ara</button>
-    </form>
+    <section class="search-panel" aria-labelledby="searchHeading">
+      <h1 id="searchHeading" class="visually-hidden" data-i18n="searchLabel">Şehir veya ilçe ara</h1>
+      <form id="searchForm" class="search-form" role="search">
+        <div class="search-input-wrap">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="cityInput" type="search" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" data-i18n-placeholder="searchPlaceholder" placeholder="İlçe veya şehir adı gir...">
+          <button id="clearBtn" class="clear-action" type="button" data-i18n-title="clear" aria-label="Temizle">×</button>
+          <div id="suggestions" class="suggestions" role="listbox"></div>
+        </div>
+        <button id="searchBtn" class="primary-button" type="submit" data-i18n="search">Ara</button>
+      </form>
 
-    <div class="controls">
-      <div class="geo-control">
-        <button id="useLocationBtn" class="geo-btn" aria-label="Konumumu kullan">📍 Konumumu Kullan</button>
-      </div>
-      <div class="unit-toggle" role="radiogroup" aria-label="Sıcaklık birimi">
-        <button id="unitCBtn" type="button" role="radio" aria-checked="true" class="unit-btn">°C</button>
-        <button id="unitFBtn" type="button" role="radio" aria-checked="false" class="unit-btn">°F</button>
-      </div>
-    </div>
-
-    <div id="suggestions" class="suggestions" role="listbox" aria-label="Öneriler"></div>
-    <div id="geoNotice" class="geo-notice" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-
-    <!-- Geolocation help modal -->
-    <div id="geoModalOverlay" class="modal-overlay" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="geoModalTitle">
-        <button id="geoModalClose" class="modal-close" aria-label="Kapat">×</button>
-        <h2 id="geoModalTitle">Konum izni nasıl açılır?</h2>
-        <div class="modal-body">
-          <p>Tarayıcınızda site için konum izni kapalıysa uygulama otomatik konum alamaz. Aşağıdaki kısa adımları izleyin:</p>
-          <ul>
-            <li><strong>Chrome / Edge:</strong> Adres çubuğundaki kilit simgesine tıklayın → Site ayarları → Konum → Allow.</li>
-            <li><strong>Firefox:</strong> Adres çubuğundaki kilit → Permissions → Location → Allow.</li>
-            <li><strong>Safari (macOS):</strong> Safari → Settings for This Website → Location → Allow.</li>
-          </ul>
-          <p>Değişiklikten sonra sayfayı yenileyin ve tekrar <em>Konumumu Kullan</em> butonuna basın.</p>
+      <div class="quick-controls">
+        <button id="locationBtn" class="secondary-button" type="button"><span aria-hidden="true">◎</span> <span data-i18n="useLocation">Konumumu kullan</span></button>
+        <div class="segmented" role="radiogroup" aria-label="Sıcaklık birimi">
+          <button id="unitCBtn" type="button" role="radio" aria-checked="true">°C</button>
+          <button id="unitFBtn" type="button" role="radio" aria-checked="false">°F</button>
         </div>
       </div>
-    </div>
-    <div id="recent" class="recent"></div>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    </section>
 
-    <main id="result" class="result" aria-live="polite" aria-atomic="true">
-      <p>Bir şehir arat.</p>
-    </main>
+    <section id="favoritesSection" class="saved-section" hidden>
+      <div class="section-heading compact-heading">
+        <h2 data-i18n="favorites">Favoriler</h2>
+        <button id="compareBtn" class="link-action" type="button" data-i18n="compare">Favorileri karşılaştır</button>
+      </div>
+      <div id="favoritesList" class="chip-list"></div>
+    </section>
 
-    <footer class="footer">
-      <small>Veri: Open‑Meteo · İl/ilçe verisi: local JSON · Eğitim amaçlı.</small>
+    <section id="recentSection" class="saved-section" hidden>
+      <div class="section-heading compact-heading">
+        <h2 data-i18n="recent">Son aramalar</h2>
+        <button id="clearRecentBtn" class="link-action" type="button" data-i18n="clearRecent">Temizle</button>
+      </div>
+      <div id="recentList" class="chip-list"></div>
+    </section>
+
+    <section id="result" class="weather-result" aria-live="polite" aria-busy="false">
+      <div class="empty-state">
+        <span class="empty-icon" aria-hidden="true">☁</span>
+        <h2 data-i18n="emptyTitle">Bugün hava nasıl?</h2>
+        <p data-i18n="emptyBody">Bir ilçe ara veya konumunu kullan. Tahminler, saatlik grafikler ve hava kalitesi burada görünecek.</p>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span data-i18n="source">Veri: Open-Meteo · İl/ilçe verisi: yerel doğrulanmış JSON</span>
+      <button id="helpBtn" class="link-action" type="button" data-i18n="locationHelp">Konum iznini açma yardımı</button>
     </footer>
-  </div>
+  </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-<script src="./app.js?v=2026-temiz"></script>
+  <dialog id="ipDialog" class="modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" type="submit" aria-label="Kapat">×</button>
+      <h2 data-i18n="ipConsentTitle">Yaklaşık IP konumu</h2>
+      <p data-i18n="ipConsentBody">Devam edersen IP adresin yaklaşık şehir tespiti için ipwho.is servisine gönderilir. Hassas GPS konumu paylaşılmaz.</p>
+      <div class="modal-actions">
+        <button id="allowIpBtn" class="primary-button" value="default" type="button" data-i18n="allowIp">IP ile yaklaşık konumu bul</button>
+        <button class="secondary-button" value="cancel" type="submit" data-i18n="cancel">Vazgeç</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="helpDialog" class="modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" type="submit" aria-label="Kapat">×</button>
+      <h2 data-i18n="permissionHelpTitle">Konum izni nasıl açılır?</h2>
+      <p data-i18n="permissionHelpBody">Tarayıcının adres çubuğundaki site ayarlarını aç, Konum iznini “İzin ver” olarak değiştir ve sayfayı yenile.</p>
+      <div class="modal-actions">
+        <button class="primary-button" value="cancel" type="submit" data-i18n="close">Kapat</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="compareDialog" class="modal wide-modal">
+    <form method="dialog">
+      <button class="modal-close" value="cancel" type="submit" aria-label="Kapat">×</button>
+      <h2 data-i18n="compareTitle">Favori şehir karşılaştırması</h2>
+      <div id="compareContent" class="compare-content"></div>
+    </form>
+  </dialog>
+
+  <canvas id="shareCanvas" width="1200" height="630" hidden></canvas>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
-
-<script src="./app.js?v=no-history-final-1"></script>

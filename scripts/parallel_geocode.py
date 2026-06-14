@@ -69,14 +69,17 @@ def candidate_is_valid(candidate):
     # approximate Turkey bbox
     if not (35 <= latf <= 43 and 25 <= lonf <= 45):
         return False, 'outside-bbox'
-    country = (candidate.get('country') or '').lower()
-    if country and ('tur' not in country and 'tr' not in country and 'tür' not in country):
+    country_code = (candidate.get('country_code') or '').upper()
+    if country_code and country_code != 'TR':
         return False, 'country-mismatch'
     return True, None
 
 
 def geocode_query(q):
-    url = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(q)}&count=5&language=tr&format=json"
+    url = (
+        "https://geocoding-api.open-meteo.com/v1/search"
+        f"?name={urllib.parse.quote(q)}&count=10&language=tr&format=json&countryCode=TR"
+    )
     headers = {'User-Agent': 'weather-app-parallel-geocode/1.0'}
     if HAVE_REQUESTS:
         try:
@@ -156,8 +159,6 @@ def worker_loop(tid, q_tasks, cache, cache_lock, results_lock, total, args, upda
                 if normalize_text(adm1) == prov_norm:
                     best = c
                     break
-            if not best and candidates:
-                best = candidates[0]
             if not best:
                 continue
             valid, reason = candidate_is_valid(best)

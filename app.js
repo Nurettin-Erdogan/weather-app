@@ -1,1497 +1,691 @@
-const cityInput = document.getElementById('cityInput');
-const searchBtn = document.getElementById('searchBtn');
-const resultDiv = document.getElementById('result');
-const suggestionsContainer = document.getElementById('suggestions');
-const clearBtn = document.getElementById('clearBtn');
-const unitCBtn = document.getElementById('unitCBtn');
-const unitFBtn = document.getElementById('unitFBtn');
-const searchForm = document.getElementById('searchForm');
-const useLocationBtn = document.getElementById('useLocationBtn');
+import { fetchApproximateIpLocation, fetchWeatherBundle, searchRemoteLocation } from './js/api.js';
+import { drawHourlyChart } from './js/chart.js';
+import { translate } from './js/i18n.js';
+import { findDistrict, loadDistrictIndex, nearestDistrict, searchDistricts } from './js/search.js';
+import {
+  addRecent, clearRecent, getFavorites, getLatestWeatherCache, getRecent,
+  getSettings, getWeatherCache, saveSettings, saveWeatherCache, toggleFavorite,
+} from './js/storage.js';
+import {
+  airQualityLabel, cacheKey, debounce, escapeHtml, formatDay, formatHour,
+  formatLocalTime, formatTemperature, mapUrls, normalizeForSearch, windDirection,
+} from './js/utils.js';
+import { weatherIcon, weatherLabel, weatherTheme } from './js/weather-codes.js';
 
-let unit = localStorage.getItem('weather_unit') || 'C';
-let lastWeatherData = null;
-let lastLocation = {
-  latitude: null,
-  longitude: null,
-  name: '',
-  country: ''
+const elements = Object.fromEntries([
+  'searchForm', 'cityInput', 'clearBtn', 'searchBtn', 'suggestions', 'locationBtn',
+  'unitCBtn', 'unitFBtn', 'notice', 'result', 'favoritesSection', 'favoritesList',
+  'compareBtn', 'recentSection', 'recentList', 'clearRecentBtn', 'themeBtn',
+  'languageBtn', 'installBtn', 'offlineBanner', 'helpBtn', 'ipDialog', 'allowIpBtn',
+  'helpDialog', 'compareDialog', 'compareContent', 'shareCanvas', 'toast',
+].map(id => [id, document.getElementById(id)]));
+
+const state = {
+  settings: getSettings(),
+  currentLocation: null,
+  currentBundle: null,
+  currentSavedAt: null,
+  currentIsCached: false,
+  requestController: null,
+  retryAction: null,
+  installPrompt: null,
+  serviceWorkerRegistration: null,
+  toastTimer: null,
 };
 
-let localDistrictsFlat = [];
-let fuseSearch = null;
-let suggestionIdCounter = 0;
+const t = (key, variables) => translate(state.settings.language, key, variables);
 
-const DEBUG = false;
-
-function debugWarn(...args) {
-  if (DEBUG) console.warn(...args);
+function updateTranslations() {
+  document.documentElement.lang = state.settings.language;
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+    element.placeholder = t(element.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(element => {
+    const label = t(element.dataset.i18nTitle);
+    element.title = label;
+    element.setAttribute('aria-label', label);
+  });
+  elements.cityInput.setAttribute('aria-label', t('searchLabel'));
+  elements.unitCBtn.parentElement.setAttribute('aria-label', state.settings.language === 'tr' ? 'Sıcaklık birimi' : 'Temperature unit');
 }
 
-function debugError(...args) {
-  if (DEBUG) console.error(...args);
-}
-
-/* =========================================================
-   BAŞLANGIÇ AYARLARI
-========================================================= */
-
-if (suggestionsContainer) {
-  suggestionsContainer.setAttribute('role', 'listbox');
-  suggestionsContainer.setAttribute('aria-label', 'Arama önerileri');
-}
-
-if (cityInput) {
-  cityInput.setAttribute('role', 'combobox');
-  cityInput.setAttribute('aria-autocomplete', 'list');
-  cityInput.setAttribute('aria-controls', 'suggestions');
-  cityInput.setAttribute('aria-expanded', 'false');
-  cityInput.setAttribute('aria-haspopup', 'listbox');
-}
-
-if (unitCBtn) unitCBtn.setAttribute('role', 'radio');
-if (unitFBtn) unitFBtn.setAttribute('role', 'radio');
-
-/* =========================================================
-   YARDIMCI FONKSİYONLAR
-========================================================= */
-
-function toTitleCaseTR(text) {
-  if (!text) return '';
-
-  return String(text)
-    .toLocaleLowerCase('tr-TR')
-    .split(/(\s+|-|\/)/)
-    .map(part => {
-      if (!part || /^\s+$/.test(part) || part === '-' || part === '/') return part;
-      return part.charAt(0).toLocaleUpperCase('tr-TR') + part.slice(1);
-    })
-    .join('');
-}
-
-function normalizeForSearch(value) {
-  if (!value) return '';
-
-  let text = String(value).toLocaleLowerCase('tr-TR');
-
-  try {
-    text = text.normalize('NFD').replace(/\p{M}/gu, '');
-  } catch (error) {
-    debugWarn('Normalize desteklenmedi:', error);
+function resolvedTheme() {
+  if (state.settings.theme === 'system') {
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
-
-  text = text
-    .replace(/[ıİ]/g, 'i')
-    .replace(/[ğĞ]/g, 'g')
-    .replace(/[üÜ]/g, 'u')
-    .replace(/[şŞ]/g, 's')
-    .replace(/[öÖ]/g, 'o')
-    .replace(/[çÇ]/g, 'c');
-
-  text = text.replace(/[^a-z0-9]+/g, ' ');
-  text = text.replace(/\s+/g, ' ').trim();
-
-  return text;
+  return state.settings.theme;
 }
 
-function stripLocationPrefix(value) {
-  return String(value || '')
-    .replace(/^\s*konumum\s*:\s*/i, '')
-    .replace(/^\s*ip\s*konumu\s*:\s*/i, '')
-    .trim();
+function applySettings() {
+  const theme = resolvedTheme();
+  document.documentElement.dataset.theme = theme;
+  elements.unitCBtn.setAttribute('aria-checked', String(state.settings.unit === 'C'));
+  elements.unitFBtn.setAttribute('aria-checked', String(state.settings.unit === 'F'));
+  elements.unitCBtn.classList.toggle('active', state.settings.unit === 'C');
+  elements.unitFBtn.classList.toggle('active', state.settings.unit === 'F');
+  updateTranslations();
+  if (state.currentBundle) renderWeather();
+  renderSavedLocations();
 }
 
-function debounce(fn, ms = 250) {
-  let timer;
-
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), ms);
-  };
-}
-
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function formatTemp(celsius) {
-  const number = Number(celsius);
-
-  if (Number.isNaN(number)) return '—';
-
-  if (unit === 'C') {
-    return `${Math.round(number)} °C`;
-  }
-
-  return `${Math.round((number * 9 / 5) + 32)} °F`;
-}
-
-function setActiveUnitButton() {
-  if (unitCBtn) {
-    unitCBtn.setAttribute('aria-pressed', unit === 'C' ? 'true' : 'false');
-    unitCBtn.setAttribute('aria-checked', unit === 'C' ? 'true' : 'false');
-    unitCBtn.classList.toggle('active', unit === 'C');
-  }
-
-  if (unitFBtn) {
-    unitFBtn.setAttribute('aria-pressed', unit === 'F' ? 'true' : 'false');
-    unitFBtn.setAttribute('aria-checked', unit === 'F' ? 'true' : 'false');
-    unitFBtn.classList.toggle('active', unit === 'F');
+function setLoading(loading) {
+  elements.result.setAttribute('aria-busy', String(loading));
+  [elements.searchBtn, elements.locationBtn].forEach(button => { button.disabled = loading; });
+  if (loading) {
+    elements.result.innerHTML = `
+      <div class="loading-state" role="status">
+        <span class="loader" aria-hidden="true"></span>
+        <strong>${escapeHtml(t('loading'))}</strong>
+      </div>`;
   }
 }
 
-function isValidCoordinate(lat, lon) {
-  const nLat = Number(lat);
-  const nLon = Number(lon);
-
-  return (
-    !Number.isNaN(nLat) &&
-    !Number.isNaN(nLon) &&
-    nLat >= -90 &&
-    nLat <= 90 &&
-    nLon >= -180 &&
-    nLon <= 180
-  );
+function showToast(message) {
+  clearTimeout(state.toastTimer);
+  elements.toast.textContent = message;
+  elements.toast.hidden = false;
+  state.toastTimer = setTimeout(() => { elements.toast.hidden = true; }, 3200);
 }
 
-function showInitialMessage() {
-  if (!resultDiv) return;
-  resultDiv.innerHTML = '<p>Bir şehir arat.</p>';
-}
-
-/* =========================================================
-   LOCAL İL / İLÇE VERİSİ
-========================================================= */
-
-async function loadLocalJson() {
-  const sources = [
-    'data/il-ilce-with-loc.json',
-    'data/il-ilce.json'
-  ];
-
-  for (const source of sources) {
-    try {
-      const response = await fetch(source);
-
-      if (!response.ok) {
-        debugWarn(`${source} yüklenemedi:`, response.status);
-        continue;
-      }
-
-      const json = await response.json();
-      return { json, source };
-    } catch (error) {
-      debugWarn(`${source} okuma hatası:`, error);
-    }
-  }
-
-  return { json: [], source: '' };
-}
-
-function flattenLocalDistricts(json) {
-  const provinces = Array.isArray(json) ? json : (json.data || []);
-  const flat = [];
-
-  for (const provinceItem of provinces) {
-    const province =
-      provinceItem.il_adi ||
-      provinceItem.province ||
-      provinceItem.name ||
-      provinceItem.il ||
-      '';
-
-    const districts =
-      provinceItem.ilceler ||
-      provinceItem.districts ||
-      provinceItem.children ||
-      [];
-
-    for (const districtItem of districts) {
-      let district = '';
-      let latitude = null;
-      let longitude = null;
-
-      if (typeof districtItem === 'string') {
-        district = districtItem;
-      } else {
-        district =
-          districtItem.ilce_adi ||
-          districtItem.ilce ||
-          districtItem.name ||
-          districtItem.district ||
-          '';
-
-        latitude = districtItem.latitude ?? districtItem.lat ?? null;
-        longitude = districtItem.longitude ?? districtItem.lon ?? districtItem.lng ?? null;
-      }
-
-      if (!district || !province) continue;
-
-      flat.push({
-        province,
-        district,
-        latitude,
-        longitude,
-        province_norm: normalizeForSearch(province),
-        district_norm: normalizeForSearch(district),
-        search_key: `${district} ${province}`,
-        search_key_norm: normalizeForSearch(`${district} ${province}`)
-      });
-    }
-  }
-
-  return flat;
-}
-
-async function reindexLocalDistricts() {
-  const { json, source } = await loadLocalJson();
-  const flat = flattenLocalDistricts(json);
-
-  localDistrictsFlat = flat;
-
-  if (typeof Fuse !== 'undefined') {
-    try {
-      fuseSearch = new Fuse(localDistrictsFlat, {
-        keys: [
-          { name: 'search_key_norm', weight: 0.9 },
-          { name: 'district_norm', weight: 0.7 },
-          { name: 'province_norm', weight: 0.3 }
-        ],
-        threshold: 0.28,
-        ignoreLocation: true,
-        includeScore: true
-      });
-    } catch (error) {
-      debugWarn('Fuse oluşturulamadı:', error);
-      fuseSearch = null;
-    }
-  }
-
-  debugWarn('Local il/ilçe index hazır:', localDistrictsFlat.length, source);
-  return localDistrictsFlat.length > 0;
-}
-
-function parseDistrictProvinceQuery(query) {
-  const clean = stripLocationPrefix(query);
-
-  if (clean.includes('/')) {
-    const parts = clean
-      .split('/')
-      .map(part => normalizeForSearch(part))
-      .filter(Boolean);
-
-    return {
-      district: parts[0] || '',
-      province: parts[1] || '',
-      full: normalizeForSearch(clean)
-    };
-  }
-
-  return {
-    district: '',
-    province: '',
-    full: normalizeForSearch(clean)
-  };
-}
-
-function scoreLocalCandidate(item, parsed) {
-  const q = parsed.full;
-  const qDistrict = parsed.district;
-  const qProvince = parsed.province;
-
-  if (!q) return 0;
-
-  if (qDistrict && qProvince) {
-    if (item.district_norm === qDistrict && item.province_norm === qProvince) return 100;
-    if (item.district_norm === qDistrict && item.province_norm.includes(qProvince)) return 92;
-    if (item.district_norm.includes(qDistrict) && item.province_norm === qProvince) return 88;
-    return 0;
-  }
-
-  if (item.search_key_norm === q) return 100;
-  if (item.district_norm === q) return 95;
-
-  if (q.includes(item.district_norm) && q.includes(item.province_norm)) return 90;
-
-  if (q.length >= 4 && item.district_norm.startsWith(q)) return 75;
-  if (q.length >= 5 && item.search_key_norm.startsWith(q)) return 70;
-
-  return 0;
-}
-
-function findBestLocalDistrict(query) {
-  if (!localDistrictsFlat || !localDistrictsFlat.length) return null;
-
-  const parsed = parseDistrictProvinceQuery(query);
-
-  let best = null;
-  let bestScore = 0;
-
-  for (const item of localDistrictsFlat) {
-    const score = scoreLocalCandidate(item, parsed);
-
-    if (score > bestScore && isValidCoordinate(item.latitude, item.longitude)) {
-      best = item;
-      bestScore = score;
-    }
-  }
-
-  if (best && bestScore >= 70) {
-    return best;
-  }
-
-  if (!parsed.province && fuseSearch) {
-    try {
-      const results = fuseSearch.search(parsed.full).slice(0, 1);
-
-      if (results.length) {
-        const item = results[0].item;
-        const fuseScore = results[0].score ?? 1;
-
-        if (item && isValidCoordinate(item.latitude, item.longitude) && fuseScore <= 0.25) {
-          return item;
-        }
-      }
-    } catch (error) {
-      debugWarn('Fuse local arama hatası:', error);
-    }
-  }
-
-  return null;
-}
-
-/* =========================================================
-   ÖNERİLER / AUTOCOMPLETE
-========================================================= */
-
-async function searchSuggestions(query) {
-  const q = String(query || '').trim();
-
-  if (!q) {
-    renderSuggestions([]);
+function showNotice(message = '', type = 'info', actions = []) {
+  if (!message) {
+    elements.notice.hidden = true;
+    elements.notice.replaceChildren();
     return;
   }
-
-  const qnorm = normalizeForSearch(q);
-  const results = [];
-
-  if (fuseSearch && localDistrictsFlat.length) {
-    try {
-      const fuseResults = fuseSearch.search(qnorm).slice(0, 10);
-
-      for (const result of fuseResults) {
-        const item = result.item || result;
-
-        if (!isValidCoordinate(item.latitude, item.longitude)) continue;
-
-        results.push({
-          source: 'local',
-          name: toTitleCaseTR(item.district),
-          admin1: toTitleCaseTR(item.province),
-          latitude: item.latitude,
-          longitude: item.longitude,
-          country: 'Türkiye'
-        });
-
-        if (results.length >= 7) break;
-      }
-    } catch (error) {
-      debugWarn('Fuse öneri hatası:', error);
-    }
+  elements.notice.hidden = false;
+  elements.notice.className = `notice ${type}`;
+  const text = document.createElement('span');
+  text.textContent = message;
+  elements.notice.replaceChildren(text);
+  for (const action of actions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'link-action';
+    button.textContent = action.label;
+    button.addEventListener('click', action.callback);
+    elements.notice.append(button);
   }
-
-  const dedup = [];
-  const seen = new Set();
-
-  for (const item of results) {
-    const key = `${normalizeForSearch(item.name)}|${normalizeForSearch(item.admin1)}`;
-
-    if (seen.has(key)) continue;
-
-    seen.add(key);
-    dedup.push(item);
-  }
-
-  renderSuggestions(dedup.slice(0, 7));
 }
 
-function renderSuggestions(items) {
-  if (!suggestionsContainer) return;
+function renderError(message, retryAction = null) {
+  state.retryAction = retryAction;
+  elements.result.innerHTML = `
+    <div class="error-state" role="alert">
+      <span aria-hidden="true">!</span>
+      <h2>${escapeHtml(message)}</h2>
+      ${retryAction ? `<button id="retryBtn" class="primary-button" type="button">${escapeHtml(t('retry'))}</button>` : ''}
+    </div>`;
+  document.getElementById('retryBtn')?.addEventListener('click', () => state.retryAction?.());
+}
 
-  suggestionsContainer.innerHTML = '';
+function locationIdentity(location) {
+  return location.id || `${normalizeForSearch(location.name)}|${normalizeForSearch(location.admin1)}`;
+}
 
-  if (cityInput) {
-    cityInput.setAttribute('aria-expanded', items && items.length ? 'true' : 'false');
-  }
+function normalizedLocation(location) {
+  return { ...location, id: locationIdentity(location) };
+}
 
-  if (!items || !items.length) return;
+function renderSavedLocations() {
+  const favorites = getFavorites();
+  const recent = getRecent();
+  elements.favoritesSection.hidden = favorites.length === 0;
+  elements.recentSection.hidden = recent.length === 0;
+  elements.favoritesList.innerHTML = favorites.map(location => `
+    <span class="location-chip">
+      <button type="button" data-open-id="${escapeHtml(location.id)}">★ ${escapeHtml(location.label)}</button>
+      <button class="chip-remove" type="button" data-remove-id="${escapeHtml(location.id)}" aria-label="${escapeHtml(t('removeFavorite'))}">×</button>
+    </span>`).join('');
+  elements.recentList.innerHTML = recent.map(location => `
+    <button class="location-chip recent-chip" type="button" data-recent-id="${escapeHtml(location.id)}">${escapeHtml(location.label)}</button>`).join('');
 
-  items.forEach((item, index) => {
-    const div = document.createElement('div');
-
-    div.className = 'suggestion-item';
-    div.tabIndex = 0;
-    div.id = `suggestion-${suggestionIdCounter++}`;
-    div.setAttribute('role', 'option');
-    div.setAttribute('aria-selected', 'false');
-
-    div.dataset.idx = String(index);
-    div.dataset.name = item.name || '';
-    div.dataset.admin1 = item.admin1 || '';
-    div.dataset.lat = item.latitude ?? '';
-    div.dataset.lon = item.longitude ?? '';
-    div.dataset.country = item.country || 'Türkiye';
-
-    div.innerHTML = `
-      <div class="suggestion-main">${escapeHtml(item.name || '')}</div>
-      ${item.admin1 ? `<div class="suggestion-sub">${escapeHtml(item.admin1)}</div>` : ''}
-    `;
-
-    div.addEventListener('click', () => selectSuggestionFromElement(div));
-
-    div.addEventListener('focus', () => {
-      suggestionsContainer.querySelectorAll('.suggestion-item').forEach(suggestion => {
-        suggestion.setAttribute('aria-selected', 'false');
-      });
-
-      div.setAttribute('aria-selected', 'true');
+  elements.favoritesList.querySelectorAll('[data-open-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      const location = favorites.find(item => item.id === button.dataset.openId);
+      if (location) openWeather(location);
     });
-
-    div.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        selectSuggestionFromElement(div);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-
-        if (div.nextElementSibling) {
-          div.nextElementSibling.focus();
-        }
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-
-        if (div.previousElementSibling) {
-          div.previousElementSibling.focus();
-        } else if (cityInput) {
-          cityInput.focus();
-        }
-      } else if (event.key === 'Escape') {
-        suggestionsContainer.innerHTML = '';
-
-        if (cityInput) {
-          cityInput.focus();
-          cityInput.setAttribute('aria-expanded', 'false');
-        }
-      }
+  });
+  elements.favoritesList.querySelectorAll('[data-remove-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      const location = favorites.find(item => item.id === button.dataset.removeId);
+      if (location) toggleFavorite(location);
+      renderSavedLocations();
+      updateFavoriteButton();
     });
-
-    suggestionsContainer.appendChild(div);
+  });
+  elements.recentList.querySelectorAll('[data-recent-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      const location = recent.find(item => item.id === button.dataset.recentId);
+      if (location) openWeather(location, { addToRecent: false });
+    });
   });
 }
 
-function selectSuggestionFromElement(el) {
-  const lat = el.dataset.lat;
-  const lon = el.dataset.lon;
-  const name = el.dataset.name || '';
-  const admin1 = el.dataset.admin1 || '';
-  const country = el.dataset.country || 'Türkiye';
-
-  const displayName = admin1
-    ? `${toTitleCaseTR(name)} / ${toTitleCaseTR(admin1)}`
-    : toTitleCaseTR(name);
-
-  cityInput.value = displayName;
-  suggestionsContainer.innerHTML = '';
-
-  if (cityInput) {
-    cityInput.setAttribute('aria-expanded', 'false');
+function renderSuggestions(items, query) {
+  elements.suggestions.replaceChildren();
+  elements.cityInput.setAttribute('aria-expanded', String(items.length > 0));
+  const normalizedQuery = normalizeForSearch(query);
+  for (const [index, item] of items.entries()) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'suggestion-item';
+    button.role = 'option';
+    button.id = `suggestion-${index}`;
+    const name = document.createElement('strong');
+    if (normalizeForSearch(item.name).includes(normalizedQuery)) {
+      const mark = document.createElement('mark');
+      mark.className = 'match';
+      mark.textContent = item.name;
+      name.append(mark);
+    } else {
+      name.textContent = item.name;
+    }
+    const province = document.createElement('span');
+    province.textContent = item.admin1;
+    button.append(name, province);
+    button.addEventListener('click', () => selectLocation(item));
+    button.addEventListener('keydown', event => navigateSuggestions(event, button));
+    elements.suggestions.append(button);
   }
-
-  if (isValidCoordinate(lat, lon)) {
-    fetchAndRender(lat, lon, toTitleCaseTR(name), country || 'Türkiye');
-    saveRecent(displayName);
-    return;
-  }
-
-  searchLocationRemote(displayName);
 }
 
-/* =========================================================
-   HAVA DURUMU API
-========================================================= */
+function navigateSuggestions(event, button) {
+  if (event.key === 'ArrowDown' && button.nextElementSibling) {
+    event.preventDefault();
+    button.nextElementSibling.focus();
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    (button.previousElementSibling || elements.cityInput).focus();
+  } else if (event.key === 'Escape') {
+    renderSuggestions([], '');
+    elements.cityInput.focus();
+  }
+}
 
-async function fetchAndRender(latitude, longitude, name = '', country = '') {
-  showGeoNotice('');
+function selectLocation(location) {
+  elements.cityInput.value = location.label;
+  renderSuggestions([], '');
+  openWeather(location);
+}
+
+async function handleSearch() {
+  const query = elements.cityInput.value.trim();
+  if (!query) return;
+  renderSuggestions([], '');
+  let location = findDistrict(query, state.settings.language);
+  if (!location) {
+    setLoading(true);
+    const controller = new AbortController();
+    state.requestController?.abort();
+    state.requestController = controller;
+    try {
+      location = await searchRemoteLocation(query, state.settings.language, controller.signal);
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      renderError(t('dataError'), handleSearch);
+      return;
+    } finally {
+      setLoading(false);
+    }
+  }
+  if (!location) {
+    renderError(t('locationNotFound'));
+    return;
+  }
+  elements.cityInput.value = location.label;
+  await openWeather(location);
+}
+
+async function openWeather(location, options = {}) {
+  const safeLocation = normalizedLocation(location);
+  state.requestController?.abort();
+  const controller = new AbortController();
+  state.requestController = controller;
   setLoading(true);
-
+  showNotice();
   try {
-    const weatherUrl =
-      `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${encodeURIComponent(latitude)}` +
-      `&longitude=${encodeURIComponent(longitude)}` +
-      `&current_weather=true` +
-      `&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code` +
-      `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
-      `&timezone=auto`;
-
-    const response = await fetch(weatherUrl);
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      debugError('Open-Meteo HTTP hatası:', response.status, text);
-
-      showResultError(
-        `Hava servisi kullanılamıyor. (${response.status})`,
-        () => fetchAndRender(latitude, longitude, name, country)
-      );
-
-      return;
-    }
-
-    const weather = await response.json().catch(error => {
-      debugError('JSON parse hatası:', error);
-      return null;
-    });
-
-    if (!weather || !weather.current_weather) {
-      debugError('Beklenen current_weather alanı yok:', weather);
-
-      showResultError(
-        'Hava verisi alınamadı.',
-        () => fetchAndRender(latitude, longitude, name, country)
-      );
-
-      return;
-    }
-
-    lastWeatherData = weather;
-    lastLocation = {
-      latitude,
-      longitude,
-      name,
-      country
-    };
-
-    renderWeatherFromData(weather, name, country);
+    const bundle = await fetchWeatherBundle(safeLocation.latitude, safeLocation.longitude, controller.signal);
+    state.currentLocation = safeLocation;
+    state.currentBundle = bundle;
+    state.currentSavedAt = new Date().toISOString();
+    state.currentIsCached = false;
+    saveWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude), { location: safeLocation, bundle });
+    if (options.addToRecent !== false) addRecent(safeLocation);
+    renderWeather();
+    renderSavedLocations();
+    maybeNotifyRain(false);
   } catch (error) {
-    debugError('fetchAndRender genel hata:', error);
-
-    showResultError(
-      'Hava servisine şu anda ulaşılamadı. İnternet bağlantınızı kontrol edin veya birkaç saniye sonra tekrar deneyin.',
-      () => fetchAndRender(latitude, longitude, name, country)
-    );
+    if (error.name === 'AbortError') return;
+    const cached = getWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude));
+    if (cached?.payload) {
+      state.currentLocation = cached.payload.location;
+      state.currentBundle = cached.payload.bundle;
+      state.currentSavedAt = cached.savedAt;
+      state.currentIsCached = true;
+      renderWeather();
+      showNotice(t('cached', { time: formatLocalTime(cached.savedAt, state.settings.language) }), 'warning');
+    } else {
+      renderError(t('dataError'), () => openWeather(safeLocation, options));
+    }
   } finally {
     setLoading(false);
   }
 }
 
-function renderWeatherFromData(weatherData, name = '', country = '') {
-  if (!resultDiv) return;
-
-  const current = weatherData.current_weather;
-
-  if (!current) {
-    resultDiv.innerHTML = '<p>Hava verisi yok.</p>';
-    return;
-  }
-
-  const currentCode = Number(current.weathercode ?? current.weather_code ?? 0);
-  const currentTemp = current.temperature;
-  const currentWind = current.windspeed ?? current.wind_speed ?? current.wind_speed_10m ?? '—';
-  const currentTime = current.time;
-
-  updateWeatherBackground(currentCode);
-
-  const html = `
-    <div class="weather-current">
-      <div class="icon">${getIcon(currentCode)}</div>
-      <div class="details">
-        <p><strong>Şehir:</strong> ${escapeHtml(toTitleCaseTR(name))}${country ? ', ' + escapeHtml(toTitleCaseTR(country)) : ''}</p>
-        <p><strong>Sıcaklık:</strong> ${formatTemp(currentTemp)}</p>
-        <p><strong>Rüzgar:</strong> ${escapeHtml(currentWind)} km/h</p>
-        <p><strong>Hava:</strong> ${escapeHtml(weatherCodeMap[currentCode] || 'Bilinmeyen hava durumu')}</p>
-        <p><strong>Saat:</strong> ${currentTime ? new Date(currentTime).toLocaleString('tr-TR') : '—'}</p>
-      </div>
-    </div>
-  `;
-
-  const dailyHtml = buildDailyHtml(weatherData);
-
-  const hintHtml = dailyHtml
-    ? '<p class="forecast-hint">Günlük kartlara tıklayarak saatlik tahmini görebilirsin.</p>'
-    : '';
-
-  resultDiv.innerHTML =
-    html +
-    dailyHtml +
-    hintHtml +
-    '<div id="hourlyPanel" class="forecast-hourly" aria-hidden="true" tabindex="-1"></div>';
-
-  attachHourlyPanel(weatherData);
+function currentHourlyData(weather) {
+  const hourly = weather.hourly || {};
+  const currentTime = weather.current?.time || '';
+  let start = hourly.time?.findIndex(value => value >= currentTime) ?? 0;
+  if (start < 0) start = 0;
+  const end = start + 24;
+  return Object.fromEntries(Object.entries(hourly).map(([key, values]) => [
+    key,
+    Array.isArray(values) ? values.slice(start, end) : values,
+  ]));
 }
 
-function buildDailyHtml(weatherData) {
-  const daily = weatherData.daily || {};
-  const times = daily.time || [];
-  const maxes = daily.temperature_2m_max || [];
-  const mins = daily.temperature_2m_min || [];
-  const codes = daily.weather_code || daily.weathercode || [];
+function metric(icon, label, value, detail = '') {
+  return `<article class="metric-card">
+    <span class="metric-icon" aria-hidden="true">${icon}</span>
+    <span class="metric-label">${escapeHtml(label)}</span>
+    <strong>${escapeHtml(value)}</strong>
+    ${detail ? `<small>${escapeHtml(detail)}</small>` : ''}
+  </article>`;
+}
 
-  if (!times.length) return '';
+function renderWeather() {
+  const { weather, airQuality } = state.currentBundle;
+  const current = weather.current || {};
+  const daily = weather.daily || {};
+  const location = state.currentLocation;
+  const language = state.settings.language;
+  const unit = state.settings.unit;
+  const isFavorite = getFavorites().some(item => item.id === location.id);
+  const air = airQuality?.current || {};
+  const urls = mapUrls(location.latitude, location.longitude);
+  const condition = weatherLabel(current.weather_code, language);
+  const icon = weatherIcon(current.weather_code, current.is_day);
+  const updated = formatLocalTime(current.time, language);
+  const firstSunrise = daily.sunrise?.[0] ? formatHour(daily.sunrise[0]) : '—';
+  const firstSunset = daily.sunset?.[0] ? formatHour(daily.sunset[0]) : '—';
+  const favoriteLabel = isFavorite ? t('removeFavorite') : t('addFavorite');
+  const staleBadge = state.currentIsCached ? `<span class="status-badge">${escapeHtml(t('stale'))}</span>` : '';
 
-  const count = Math.min(5, times.length);
-  let html = '<div class="forecast-daily" aria-label="5 günlük tahmin"><div class="cards">';
-
-  for (let i = 0; i < count; i++) {
-    let dayLabel = times[i];
-
-    try {
-      dayLabel = new Date(times[i]).toLocaleDateString('tr-TR', {
-        weekday: 'short',
-        day: 'numeric'
-      });
-    } catch (error) {
-      debugWarn('Tarih formatlama hatası:', error);
-    }
-
-    html += `
-      <div class="card" role="button" tabindex="0" aria-label="Tahmin ${i + 1}" aria-expanded="false">
-        <div class="card-day">${escapeHtml(dayLabel)}</div>
-        <div class="card-icon">${getIcon(codes[i])}</div>
-        <div class="card-temp">
-          <div class="card-temp-max">${formatTemp(maxes[i])}</div>
-          <div class="card-temp-min">${formatTemp(mins[i])}</div>
+  document.body.dataset.weather = weatherTheme(current.weather_code, current.is_day);
+  elements.result.innerHTML = `
+    <section class="current-card">
+      <div class="current-main">
+        <div class="current-location">
+          <span class="eyebrow">${escapeHtml(t('current'))} ${staleBadge}</span>
+          <h2>${escapeHtml(location.label || location.name)}</h2>
+          <p>${escapeHtml(condition)} · ${escapeHtml(updated)} · ${escapeHtml(weather.timezone_abbreviation || '')}</p>
+        </div>
+        <div class="temperature-block">
+          <span class="weather-emoji" aria-hidden="true">${icon}</span>
+          <strong>${escapeHtml(formatTemperature(current.temperature_2m, unit))}</strong>
+          <small>${escapeHtml(t('feelsLike'))} ${escapeHtml(formatTemperature(current.apparent_temperature, unit))}</small>
         </div>
       </div>
-    `;
-  }
-
-  html += '</div></div>';
-  return html;
-}
-
-function attachHourlyPanel(weatherData) {
-  try {
-    const dailyTimes = weatherData.daily?.time || [];
-    const hourly = weatherData.hourly || {};
-    const hourTimes = hourly.time || [];
-    const hourlyPanel = document.getElementById('hourlyPanel');
-    const cards = resultDiv.querySelectorAll('.forecast-daily .card');
-
-    if (!hourlyPanel || !cards.length) return;
-
-    hourlyPanel.innerHTML = '';
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'unit-btn hourly-close';
-    closeBtn.textContent = 'Kapat';
-    closeBtn.type = 'button';
-
-    const rowsContainer = document.createElement('div');
-    rowsContainer.className = 'hour-rows';
-
-    hourlyPanel.appendChild(closeBtn);
-    hourlyPanel.appendChild(rowsContainer);
-
-    hourlyPanel.setAttribute('role', 'region');
-    hourlyPanel.setAttribute('aria-label', 'Saatlik tahmin');
-    hourlyPanel.setAttribute('aria-hidden', 'true');
-    hourlyPanel.tabIndex = -1;
-
-    let lastOpenedCard = null;
-
-    function closeHourly() {
-      hourlyPanel.classList.remove('open');
-      hourlyPanel.setAttribute('aria-hidden', 'true');
-      hourlyPanel.dataset.date = '';
-
-      cards.forEach(card => {
-        card.setAttribute('aria-expanded', 'false');
-      });
-
-      if (lastOpenedCard) {
-        lastOpenedCard.focus();
-      }
-
-      lastOpenedCard = null;
-      document.removeEventListener('keydown', hourlyEscHandler);
-    }
-
-    function hourlyEscHandler(event) {
-      if (event.key === 'Escape') {
-        closeHourly();
-      }
-    }
-
-    closeBtn.addEventListener('click', closeHourly);
-
-    cards.forEach((card, index) => {
-      card.addEventListener('click', () => {
-        const date = dailyTimes[index];
-
-        if (!date) return;
-
-        if (hourlyPanel.dataset.date === date && hourlyPanel.classList.contains('open')) {
-          closeHourly();
-          return;
-        }
-
-        const rows = [];
-
-        for (let i = 0; i < hourTimes.length; i++) {
-          const time = hourTimes[i];
-
-          if (!time || !time.startsWith(date)) continue;
-
-          rows.push({
-            time,
-            temp: hourly.temperature_2m?.[i] ?? null,
-            humidity: hourly.relative_humidity_2m?.[i] ?? null,
-            wind: hourly.wind_speed_10m?.[i] ?? null,
-            code: hourly.weather_code?.[i] ?? null
-          });
-        }
-
-        rowsContainer.innerHTML = '';
-
-        if (!rows.length) {
-          rowsContainer.innerHTML = '<div class="no-hours">Saatlik veri bulunamadı.</div>';
-        } else {
-          rows.forEach(rowData => {
-            const row = document.createElement('div');
-            row.className = 'hour-row';
-
-            const timeLabel = new Date(rowData.time).toLocaleTimeString('tr-TR', {
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-
-            row.innerHTML = `
-              <div class="hour-time">${escapeHtml(timeLabel)}</div>
-              <div class="hour-icon">${getIcon(rowData.code)}</div>
-              <div class="hour-temp">${formatTemp(rowData.temp)}</div>
-            `;
-
-            rowsContainer.appendChild(row);
-          });
-        }
-
-        hourlyPanel.dataset.date = date;
-        hourlyPanel.classList.add('open');
-        hourlyPanel.setAttribute('aria-hidden', 'false');
-
-        cards.forEach(item => {
-          item.setAttribute('aria-expanded', 'false');
-        });
-
-        card.setAttribute('aria-expanded', 'true');
-        lastOpenedCard = card;
-        closeBtn.focus();
-
-        document.addEventListener('keydown', hourlyEscHandler);
-      });
-
-      card.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          card.click();
-        }
-      });
-    });
-  } catch (error) {
-    debugWarn('Saatlik panel bağlama hatası:', error);
-  }
-}
-
-/* =========================================================
-   HAVA KODLARI
-========================================================= */
-
-function getIcon(code) {
-  code = Number(code);
-
-  const map = {
-    0: '☀️',
-    1: '🌤️',
-    2: '⛅',
-    3: '☁️',
-    45: '🌫️',
-    48: '🌫️',
-    51: '🌦️',
-    53: '🌦️',
-    55: '🌦️',
-    56: '🌧️',
-    57: '🌧️',
-    61: '🌧️',
-    63: '🌧️',
-    65: '🌧️',
-    66: '🌧️',
-    67: '🌧️',
-    71: '🌨️',
-    73: '🌨️',
-    75: '❄️',
-    77: '❄️',
-    80: '🌦️',
-    81: '🌧️',
-    82: '⛈️',
-    85: '🌨️',
-    86: '❄️',
-    95: '⛈️',
-    96: '⛈️',
-    99: '⛈️'
-  };
-
-  return map[code] || '🌡️';
-}
-
-function updateWeatherBackground(code) {
-  code = Number(code);
-
-  const body = document.body;
-
-  if (!body) return;
-
-  body.classList.remove('clear', 'cloudy', 'rain', 'snow', 'fog', 'thunder');
-
-  if ([0].includes(code)) {
-    body.classList.add('clear');
-  } else if ([1, 2, 3].includes(code)) {
-    body.classList.add('cloudy');
-  } else if ([45, 48].includes(code)) {
-    body.classList.add('fog');
-  } else if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
-    body.classList.add('rain');
-  } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
-    body.classList.add('snow');
-  } else if ([95, 96, 99].includes(code)) {
-    body.classList.add('thunder');
-  } else {
-    body.classList.add('cloudy');
-  }
-}
-
-const weatherCodeMap = {
-  0: 'Açık',
-  1: 'Az bulutlu',
-  2: 'Parçalı bulutlu',
-  3: 'Bulutlu',
-  45: 'Sisli',
-  48: 'Kırağılı sis',
-  51: 'Hafif çiseleme',
-  53: 'Orta çiseleme',
-  55: 'Yoğun çiseleme',
-  56: 'Hafif donan çiseleme',
-  57: 'Yoğun donan çiseleme',
-  61: 'Hafif yağmur',
-  63: 'Orta şiddetli yağmur',
-  65: 'Şiddetli yağmur',
-  66: 'Hafif donan yağmur',
-  67: 'Yoğun donan yağmur',
-  71: 'Hafif kar',
-  73: 'Orta şiddetli kar',
-  75: 'Yoğun kar',
-  77: 'Kar tanecikleri',
-  80: 'Hafif sağanak',
-  81: 'Orta sağanak',
-  82: 'Şiddetli sağanak',
-  85: 'Hafif kar sağanağı',
-  86: 'Yoğun kar sağanağı',
-  95: 'Gök gürültülü fırtına',
-  96: 'Dolu ile fırtına',
-  99: 'Şiddetli dolulu fırtına'
-};
-
-/* =========================================================
-   HATA VE YÜKLEME DURUMLARI
-========================================================= */
-
-function showResultError(message, retryCallback) {
-  if (!resultDiv) return;
-
-  resultDiv.innerHTML = '';
-
-  const container = document.createElement('div');
-  container.className = 'error-wrapper';
-  container.setAttribute('role', 'alert');
-  container.setAttribute('aria-live', 'polite');
-
-  const p = document.createElement('p');
-  p.className = 'error-text';
-  p.textContent = message || 'Bir hata oluştu.';
-
-  container.appendChild(p);
-
-  if (typeof retryCallback === 'function') {
-    const btn = document.createElement('button');
-
-    btn.textContent = 'Tekrar Dene';
-    btn.className = 'unit-btn retry-btn';
-    btn.type = 'button';
-
-    btn.addEventListener('click', async () => {
-      if (btn.disabled) return;
-
-      btn.disabled = true;
-
-      const oldText = btn.textContent;
-      btn.textContent = 'Bekleniyor...';
-
-      try {
-        const result = retryCallback();
-
-        if (result && typeof result.then === 'function') {
-          await result;
-        }
-      } finally {
-        btn.disabled = false;
-        btn.textContent = oldText;
-      }
-    });
-
-    container.appendChild(btn);
-  }
-
-  resultDiv.appendChild(container);
-}
-
-function setLoading(isLoading) {
-  const controls = [
-    cityInput,
-    searchBtn,
-    clearBtn,
-    useLocationBtn,
-    unitCBtn,
-    unitFBtn
-  ];
-
-  controls.forEach(element => {
-    if (element) {
-      element.disabled = !!isLoading;
-    }
-  });
-
-  if (!resultDiv) return;
-
-  if (isLoading) {
-    resultDiv.setAttribute('aria-busy', 'true');
-    resultDiv.innerHTML = `
-      <div class="loading-wrapper" role="status" aria-live="polite">
-        <div class="loading" aria-hidden="true"></div>
-        <div class="loading-message">Yükleniyor...</div>
+      <div class="weather-actions">
+        <button id="favoriteBtn" class="action-button ${isFavorite ? 'active' : ''}" type="button">${isFavorite ? '★' : '☆'} ${escapeHtml(favoriteLabel)}</button>
+        <button id="shareBtn" class="action-button" type="button">↗ ${escapeHtml(t('share'))}</button>
+        <a class="action-button" href="${urls.map}" target="_blank" rel="noopener noreferrer">⌖ ${escapeHtml(t('map'))}</a>
+        <a class="action-button" href="${urls.radar}" target="_blank" rel="noopener noreferrer">◉ ${escapeHtml(t('radar'))}</a>
+        <button id="rainAlertBtn" class="action-button ${state.settings.rainAlerts ? 'active' : ''}" type="button">♢ ${escapeHtml(state.settings.rainAlerts ? t('alertEnabled') : t('rainAlerts'))}</button>
       </div>
-    `;
+    </section>
 
-    document.body.classList.add('loading-active');
-  } else {
-    resultDiv.removeAttribute('aria-busy');
-    document.body.classList.remove('loading-active');
-  }
-}
+    <section class="metrics-grid" aria-label="${escapeHtml(t('details'))}">
+      ${metric('◒', t('humidity'), `${current.relative_humidity_2m ?? '—'}%`)}
+      ${metric('↗', t('wind'), `${current.wind_speed_10m ?? '—'} km/h`, windDirection(current.wind_direction_10m, language))}
+      ${metric('≋', t('gust'), `${current.wind_gusts_10m ?? '—'} km/h`)}
+      ${metric('●', t('precipitation'), `${current.precipitation ?? 0} mm`)}
+      ${metric('☁', t('cloud'), `${current.cloud_cover ?? '—'}%`)}
+      ${metric('AQ', t('airQuality'), airQualityLabel(air.european_aqi, language), Number.isFinite(Number(air.european_aqi)) ? `AQI ${air.european_aqi}` : '')}
+      ${metric('UV', t('uvIndex'), String(daily.uv_index_max?.[0] ?? '—'))}
+      ${metric('↑', t('sunrise'), firstSunrise)}
+      ${metric('↓', t('sunset'), firstSunset)}
+    </section>
 
-/* =========================================================
-   SON ARAMALAR KAPALI
-========================================================= */
+    <section class="forecast-section">
+      <div class="section-heading"><div><span class="eyebrow">24h</span><h2>${escapeHtml(t('hourly'))}</h2></div></div>
+      <div class="chart-card"><canvas id="hourlyChart" aria-label="${escapeHtml(t('hourly'))}"></canvas></div>
+      <div id="hourlyRows" class="hourly-rows"></div>
+    </section>
 
-function getRecentList() {
-  return [];
-}
+    <section class="forecast-section">
+      <div class="section-heading"><div><span class="eyebrow">5 days</span><h2>${escapeHtml(t('daily'))}</h2></div></div>
+      <div class="daily-grid">
+        ${(daily.time || []).map((date, index) => `
+          <button class="day-card ${index === 0 ? 'active' : ''}" type="button" data-date="${escapeHtml(date)}">
+            <strong>${escapeHtml(formatDay(date, language))}</strong>
+            <span class="day-icon" aria-hidden="true">${weatherIcon(daily.weather_code?.[index], 1)}</span>
+            <span><b>${escapeHtml(formatTemperature(daily.temperature_2m_max?.[index], unit))}</b> / ${escapeHtml(formatTemperature(daily.temperature_2m_min?.[index], unit))}</span>
+            <small>${escapeHtml(t('probability'))} %${daily.precipitation_probability_max?.[index] ?? 0}</small>
+          </button>`).join('')}
+      </div>
+    </section>`;
 
-function saveRecent() {
-  localStorage.removeItem('weather_recent');
-}
-
-function renderRecent() {
-  localStorage.removeItem('weather_recent');
-
-  const container = document.getElementById('recent');
-
-  if (container) {
-    container.innerHTML = '';
-  }
-}
-
-/* =========================================================
-   ARAMA AKIŞI
-========================================================= */
-
-async function searchLocationRemote(query) {
-  try {
-    const cleanQuery = stripLocationPrefix(query);
-
-    const url =
-      `https://geocoding-api.open-meteo.com/v1/search` +
-      `?name=${encodeURIComponent(cleanQuery)}` +
-      `&count=1` +
-      `&language=tr` +
-      `&format=json`;
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      showResultError(
-        'Konum servisi kullanılamıyor. Lütfen tekrar deneyin.',
-        () => searchLocationRemote(cleanQuery)
-      );
-
-      return;
-    }
-
-    const data = await response.json().catch(() => null);
-
-    if (!data || !data.results || !data.results.length) {
-      showResultError('Şehir bulunamadı. Başka bir isim deneyin.');
-      return;
-    }
-
-    const location = data.results[0];
-    const name = location.name || cleanQuery;
-    const country = location.country || '';
-
-    await fetchAndRender(location.latitude, location.longitude, name, country);
-    saveRecent();
-  } catch (error) {
-    debugWarn('Uzak konum arama hatası:', error);
-
-    showResultError(
-      'Arama başarısız. Ağ bağlantınızı kontrol edip tekrar deneyin.',
-      () => searchLocationRemote(query)
-    );
-  }
-}
-
-async function handleSearch() {
-  const query = stripLocationPrefix(cityInput.value).trim();
-
-  if (!query) return;
-
-  if (suggestionsContainer) {
-    suggestionsContainer.innerHTML = '';
-  }
-
-  if (cityInput) {
-    cityInput.setAttribute('aria-expanded', 'false');
-  }
-
-  showGeoNotice('');
-
-  const localMatch = findBestLocalDistrict(query);
-
-  if (localMatch) {
-    const niceDistrict = toTitleCaseTR(localMatch.district);
-    const niceProvince = toTitleCaseTR(localMatch.province);
-    const displayName = `${niceDistrict} / ${niceProvince}`;
-
-    cityInput.value = displayName;
-
-    await fetchAndRender(localMatch.latitude, localMatch.longitude, niceDistrict, 'Türkiye');
-    saveRecent();
-
-    return;
-  }
-
-  await searchLocationRemote(query);
-}
-
-/* =========================================================
-   KONUM İZNİ VE LOCAL REVERSE GEOCODE
-========================================================= */
-
-function showGeoNotice(message, isError = false) {
-  const element = document.getElementById('geoNotice');
-
-  if (!element) return;
-
-  if (!message) {
-    element.hidden = true;
-    element.style.display = 'none';
-    element.textContent = '';
-    element.classList.remove('error');
-    element.removeAttribute('tabindex');
-    return;
-  }
-
-  if (isError) {
-    element.innerHTML = `
-      <span class="geo-icon" aria-hidden="true">📍</span>
-      <span class="geo-text">${escapeHtml(message)}</span>
-      <button id="geoHelpLink" class="link-button" type="button" aria-label="Konum izni nasıl açılır?">Nasıl izin verilir?</button>
-    `;
-  } else {
-    element.innerHTML = `
-      <span class="geo-icon" aria-hidden="true">📍</span>
-      <span class="geo-text">${escapeHtml(message)}</span>
-    `;
-  }
-
-  element.hidden = false;
-  element.style.display = 'block';
-  element.classList.toggle('error', !!isError);
-  element.setAttribute('tabindex', '-1');
-
-  const help = document.getElementById('geoHelpLink');
-
-  if (help) {
-    help.addEventListener('click', event => {
-      event.preventDefault();
-      openGeoModal();
+  const hourly = currentHourlyData(weather);
+  drawHourlyChart(document.getElementById('hourlyChart'), hourly, unit, resolvedTheme());
+  renderHourlyRows(hourly.time?.[0]?.slice(0, 10) || daily.time?.[0]);
+  document.querySelectorAll('.day-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.day-card').forEach(item => item.classList.remove('active'));
+      card.classList.add('active');
+      renderHourlyRows(card.dataset.date);
     });
-  }
+  });
+  document.getElementById('favoriteBtn')?.addEventListener('click', handleFavorite);
+  document.getElementById('shareBtn')?.addEventListener('click', shareForecastCard);
+  document.getElementById('rainAlertBtn')?.addEventListener('click', enableRainAlerts);
 }
 
-function openGeoModal() {
-  const overlay = document.getElementById('geoModalOverlay');
-
-  if (!overlay) return;
-
-  overlay.hidden = false;
-  overlay.style.display = 'flex';
-
-  const closeButton = document.getElementById('geoModalClose');
-
-  if (closeButton) {
-    closeButton.focus();
-  }
+function renderHourlyRows(date) {
+  const hourly = state.currentBundle?.weather?.hourly || {};
+  const indexes = (hourly.time || []).map((value, index) => value.startsWith(date) ? index : -1).filter(index => index >= 0);
+  const container = document.getElementById('hourlyRows');
+  if (!container) return;
+  container.innerHTML = indexes.map(index => `
+    <article class="hour-card">
+      <strong>${escapeHtml(formatHour(hourly.time[index]))}</strong>
+      <span aria-hidden="true">${weatherIcon(hourly.weather_code?.[index], 1)}</span>
+      <b>${escapeHtml(formatTemperature(hourly.temperature_2m?.[index], state.settings.unit))}</b>
+      <small>💧 %${hourly.precipitation_probability?.[index] ?? 0}</small>
+      <small>${hourly.relative_humidity_2m?.[index] ?? '—'}%</small>
+    </article>`).join('');
 }
 
-function closeGeoModal() {
-  const overlay = document.getElementById('geoModalOverlay');
-
-  if (!overlay) return;
-
-  overlay.hidden = true;
-  overlay.style.display = 'none';
+function updateFavoriteButton() {
+  if (state.currentBundle) renderWeather();
 }
 
-function distanceKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-
-  const dLat = (Number(lat2) - Number(lat1)) * Math.PI / 180;
-  const dLon = (Number(lon2) - Number(lon1)) * Math.PI / 180;
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(Number(lat1) * Math.PI / 180) *
-    Math.cos(Number(lat2) * Math.PI / 180) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
-
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+function handleFavorite() {
+  if (!state.currentLocation) return;
+  toggleFavorite(state.currentLocation);
+  renderSavedLocations();
+  updateFavoriteButton();
 }
 
-function findNearestLocalDistrict(latitude, longitude) {
-  if (!localDistrictsFlat || !localDistrictsFlat.length) return null;
-
-  let best = null;
-  let bestDistance = Infinity;
-
-  for (const item of localDistrictsFlat) {
-    if (!isValidCoordinate(item.latitude, item.longitude)) continue;
-
-    const distance = distanceKm(
-      latitude,
-      longitude,
-      item.latitude,
-      item.longitude
-    );
-
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = item;
-    }
-  }
-
-  if (!best) return null;
-
-  return {
-    name: toTitleCaseTR(best.district),
-    admin1: toTitleCaseTR(best.province),
-    country: 'Türkiye',
-    distanceKm: bestDistance
-  };
-}
-
-async function reverseGeocode(latitude, longitude) {
-  return findNearestLocalDistrict(latitude, longitude);
-}
-
-async function ipFallback() {
-  const endpoints = [
-    'https://ipwho.is/',
-    'https://ipapi.co/json/',
-    'https://ipinfo.io/json',
-    'https://ip-api.com/json/'
-  ];
-
-  for (const url of endpoints) {
-    try {
-      const response = await fetch(url);
-
-      if (!response.ok) continue;
-
-      const data = await response.json().catch(() => null);
-
-      if (!data) continue;
-
-      let lat = data.latitude !== undefined ? Number(data.latitude) : Number(data.lat);
-      let lon = data.longitude !== undefined ? Number(data.longitude) : Number(data.lon);
-
-      if ((!lat || !lon) && data.loc && typeof data.loc === 'string' && data.loc.includes(',')) {
-        const parts = data.loc.split(',').map(part => part.trim());
-
-        lat = Number(parts[0]);
-        lon = Number(parts[1]);
-      }
-
-      if (isValidCoordinate(lat, lon)) {
-        return {
-          latitude: lat,
-          longitude: lon,
-          city: data.city || data.region || data.region_name || '',
-          country: data.country_name || data.country || data.countryCode || '',
-          source: url
-        };
-      }
-    } catch (error) {
-      debugWarn('IP fallback hatası:', url, error);
-    }
-  }
-
-  return null;
-}
-
-function handleUseLocation() {
-  if (!navigator.geolocation) {
-    showGeoNotice('Tarayıcınız konum servislerini desteklemiyor.', true);
+async function compareFavorites() {
+  const favorites = getFavorites();
+  elements.compareDialog.showModal();
+  if (favorites.length < 2) {
+    elements.compareContent.innerHTML = `<p>${escapeHtml(t('compareEmpty'))}</p>`;
     return;
   }
-
-  if (suggestionsContainer) {
-    suggestionsContainer.innerHTML = '';
-  }
-
-  if (cityInput) {
-    cityInput.setAttribute('aria-expanded', 'false');
-  }
-
-  showGeoNotice('Konum isteniyor…', false);
-  setLoading(true);
-
-  navigator.geolocation.getCurrentPosition(
-    async position => {
-      setLoading(false);
-      showGeoNotice('');
-
-      const latitude = position.coords?.latitude;
-      const longitude = position.coords?.longitude;
-
-      if (!isValidCoordinate(latitude, longitude)) {
-        showGeoNotice('Konum alınamadı.', true);
-
-        if (!lastWeatherData) {
-          showInitialMessage();
-        }
-
-        return;
-      }
-
-      const nearest = await reverseGeocode(latitude, longitude);
-
-      const placeName = nearest?.name || 'Konumum';
-      const provinceName = nearest?.admin1 || '';
-      const country = nearest?.country || 'Türkiye';
-
-      const displayName = provinceName
-        ? `${toTitleCaseTR(placeName)} / ${toTitleCaseTR(provinceName)}`
-        : `Konumum: ${toTitleCaseTR(placeName)}`;
-
-      // Eski arama yazısını temizleyip konumu input'a yazıyoruz.
-      if (cityInput) {
-        cityInput.value = displayName;
-      }
-
-      await fetchAndRender(latitude, longitude, placeName, country);
-
-      // Arama geçmişi kapalı olduğu için saveRecent sadece geçmişi temizler.
-      saveRecent();
-    },
-    async error => {
-      setLoading(false);
-
-      if (error && error.code === 1) {
-        showGeoNotice('Konum izni reddedildi. IP tabanlı yaklaşık konum deneniyor...', false);
-
-        const location = await ipFallback();
-
-        if (location && isValidCoordinate(location.latitude, location.longitude)) {
-          const nearest = await reverseGeocode(location.latitude, location.longitude);
-
-          const placeName = nearest?.name || location.city || 'Yaklaşık konum';
-          const provinceName = nearest?.admin1 || '';
-          const country = nearest?.country || location.country || 'Türkiye';
-
-          const displayName = provinceName
-            ? `${toTitleCaseTR(placeName)} / ${toTitleCaseTR(provinceName)}`
-            : `Konumum: ${toTitleCaseTR(placeName)}`;
-
-          // IP fallback çalışırsa da input eski aramada kalmasın.
-          if (cityInput) {
-            cityInput.value = displayName;
-          }
-
-          await fetchAndRender(location.latitude, location.longitude, placeName, country);
-
-          // Arama geçmişi kapalı.
-          saveRecent();
-        } else {
-          showGeoNotice('IP tabanlı konum alınamadı. Manuel arama yapın.', true);
-
-          if (!lastWeatherData) {
-            showInitialMessage();
-          }
-        }
-      } else {
-        showGeoNotice('Konum alınamadı: ' + (error?.message || 'Bilinmeyen hata'), true);
-
-        if (!lastWeatherData) {
-          showInitialMessage();
-        }
-      }
-    },
-    {
-      enableHighAccuracy: false,
-      timeout: 10000,
-      maximumAge: 600000
-    }
-  );
-}
-
-/* =========================================================
-   EVENTLER
-========================================================= */
-
-if (cityInput) {
-  cityInput.addEventListener('input', debounce(event => {
-    searchSuggestions(event.target.value);
-  }, 250));
-
-  cityInput.addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleSearch();
-    } else if (event.key === 'ArrowDown') {
-      const first = suggestionsContainer?.querySelector('.suggestion-item');
-
-      if (first) {
-        first.focus();
-        event.preventDefault();
-      }
-    }
-  });
-}
-
-if (clearBtn) {
-  clearBtn.addEventListener('click', () => {
-    cityInput.value = '';
-
-    if (suggestionsContainer) {
-      suggestionsContainer.innerHTML = '';
-    }
-
-    if (cityInput) {
-      cityInput.focus();
-      cityInput.setAttribute('aria-expanded', 'false');
-    }
-  });
-}
-
-if (searchForm) {
-  searchForm.addEventListener('submit', event => {
-    event.preventDefault();
-    handleSearch();
-  });
-}
-
-if (searchBtn) {
-  searchBtn.addEventListener('click', event => {
-    event.preventDefault();
-    handleSearch();
-  });
-}
-
-if (unitCBtn) {
-  unitCBtn.addEventListener('click', () => {
-    unit = 'C';
-    localStorage.setItem('weather_unit', unit);
-    setActiveUnitButton();
-
-    if (lastWeatherData) {
-      renderWeatherFromData(lastWeatherData, lastLocation.name, lastLocation.country);
-    }
-  });
-}
-
-if (unitFBtn) {
-  unitFBtn.addEventListener('click', () => {
-    unit = 'F';
-    localStorage.setItem('weather_unit', unit);
-    setActiveUnitButton();
-
-    if (lastWeatherData) {
-      renderWeatherFromData(lastWeatherData, lastLocation.name, lastLocation.country);
-    }
-  });
-}
-
-if (useLocationBtn) {
-  useLocationBtn.addEventListener('click', handleUseLocation);
-}
-
-document.addEventListener('click', event => {
-  if (!event.target) return;
-
-  if (event.target.id === 'geoModalClose') {
-    closeGeoModal();
-  }
-
-  if (event.target.id === 'geoModalOverlay') {
-    closeGeoModal();
-  }
-});
-
-/* =========================================================
-   SAYFA YÜKLENİNCE
-========================================================= */
-
-window.reindexLocalDistricts = reindexLocalDistricts;
-
-window.addEventListener('load', async () => {
+  elements.compareContent.innerHTML = `<div class="loading-state"><span class="loader"></span><strong>${escapeHtml(t('loading'))}</strong></div>`;
+  const controller = new AbortController();
   try {
-    localStorage.removeItem('weather_recent');
-
-    showGeoNotice('');
-    showInitialMessage();
-    renderRecent();
-    setActiveUnitButton();
-
-    await reindexLocalDistricts();
-
-    if (navigator.permissions && navigator.permissions.query) {
-      try {
-        const permission = await navigator.permissions.query({ name: 'geolocation' });
-
-        if (permission && permission.state === 'denied') {
-          showGeoNotice('Konum izni tarayıcı tarafından engellenmiş. Site izinlerinden konumu açın.', true);
-        }
-      } catch (error) {
-        debugWarn('Permission kontrol hatası:', error);
-      }
-    }
-  } catch (error) {
-    debugError('Sayfa yüklenirken hata:', error);
-    showInitialMessage();
+    const results = await Promise.all(favorites.slice(0, 4).map(async location => ({
+      location,
+      bundle: await fetchWeatherBundle(location.latitude, location.longitude, controller.signal),
+    })));
+    elements.compareContent.innerHTML = `
+      <div class="comparison-grid">
+        ${results.map(({ location, bundle }) => {
+          const current = bundle.weather.current;
+          return `<article class="comparison-card">
+            <span class="weather-emoji small">${weatherIcon(current.weather_code, current.is_day)}</span>
+            <h3>${escapeHtml(location.label)}</h3>
+            <strong>${escapeHtml(formatTemperature(current.temperature_2m, state.settings.unit))}</strong>
+            <p>${escapeHtml(weatherLabel(current.weather_code, state.settings.language))}</p>
+            <small>${escapeHtml(t('humidity'))}: ${current.relative_humidity_2m}%</small>
+            <small>${escapeHtml(t('wind'))}: ${current.wind_speed_10m} km/h</small>
+          </article>`;
+        }).join('')}
+      </div>`;
+  } catch {
+    elements.compareContent.innerHTML = `<p>${escapeHtml(t('dataError'))}</p>`;
   }
-});
+}
+
+async function handleUseLocation() {
+  if (!navigator.geolocation) {
+    showNotice(t('locationUnavailable'), 'error');
+    return;
+  }
+  showNotice(t('loading'));
+  navigator.geolocation.getCurrentPosition(async position => {
+    const location = nearestDistrict(position.coords.latitude, position.coords.longitude, state.settings.language) || {
+      name: state.settings.language === 'tr' ? 'Konumum' : 'My location',
+      admin1: '',
+      label: state.settings.language === 'tr' ? 'Konumum' : 'My location',
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      country: 'Türkiye',
+    };
+    elements.cityInput.value = location.label;
+    await openWeather(location);
+  }, error => {
+    if (error.code === error.PERMISSION_DENIED) {
+      showNotice(t('locationDenied'), 'warning', [{ label: t('allowIp'), callback: () => elements.ipDialog.showModal() }]);
+    } else {
+      showNotice(t('locationUnavailable'), 'error');
+    }
+  }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+}
+
+async function useApproximateIpLocation() {
+  elements.ipDialog.close();
+  setLoading(true);
+  const controller = new AbortController();
+  try {
+    const approximate = await fetchApproximateIpLocation(controller.signal);
+    if (!approximate) throw new Error('No IP location');
+    const location = nearestDistrict(approximate.latitude, approximate.longitude, state.settings.language) || {
+      id: `ip|${approximate.city}`,
+      name: approximate.city,
+      admin1: '',
+      label: approximate.city,
+      country: approximate.country,
+      latitude: approximate.latitude,
+      longitude: approximate.longitude,
+    };
+    elements.cityInput.value = location.label;
+    await openWeather(location);
+  } catch {
+    showNotice(t('locationUnavailable'), 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function rainChanceSoon() {
+  const weather = state.currentBundle?.weather;
+  if (!weather) return 0;
+  const hourly = weather.hourly || {};
+  const start = Math.max(0, hourly.time?.findIndex(value => value >= weather.current.time) ?? 0);
+  return Math.max(0, ...(hourly.precipitation_probability || []).slice(start, start + 3).map(Number));
+}
+
+async function enableRainAlerts() {
+  if (!('Notification' in window)) {
+    showToast(t('alertDenied'));
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    showToast(t('alertDenied'));
+    return;
+  }
+  state.settings.rainAlerts = true;
+  saveSettings(state.settings);
+  updateFavoriteButton();
+  await maybeNotifyRain(true);
+}
+
+async function maybeNotifyRain(showNoRainMessage) {
+  if (!state.settings.rainAlerts || Notification.permission !== 'granted' || !state.currentLocation) return;
+  const chance = rainChanceSoon();
+  if (chance < 50) {
+    if (showNoRainMessage) showToast(t('noRainSoon'));
+    return;
+  }
+  const body = t('rainSoon', { place: state.currentLocation.name, chance });
+  if (state.serviceWorkerRegistration) {
+    await state.serviceWorkerRegistration.showNotification(t('rainAlerts'), {
+      body,
+      icon: './icons/icon-192.png',
+      badge: './icons/icon-192.png',
+      tag: `rain-${state.currentLocation.id}`,
+    });
+  } else {
+    new Notification(t('rainAlerts'), { body, icon: './icons/icon-192.png' });
+  }
+  showToast(body);
+}
+
+async function shareForecastCard() {
+  if (!state.currentBundle || !state.currentLocation) return;
+  const canvas = elements.shareCanvas;
+  const context = canvas.getContext('2d');
+  const current = state.currentBundle.weather.current;
+  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#0f766e');
+  gradient.addColorStop(1, '#2563eb');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = 'rgba(255,255,255,.12)';
+  context.beginPath(); context.arc(1020, 100, 240, 0, Math.PI * 2); context.fill();
+  context.fillStyle = '#fff';
+  context.font = '700 54px system-ui';
+  context.fillText(state.currentLocation.label, 70, 105);
+  context.font = '180px serif';
+  context.fillText(weatherIcon(current.weather_code, current.is_day), 70, 330);
+  context.font = '800 116px system-ui';
+  context.fillText(formatTemperature(current.temperature_2m, state.settings.unit), 340, 300);
+  context.font = '500 42px system-ui';
+  context.fillText(weatherLabel(current.weather_code, state.settings.language), 350, 365);
+  context.font = '400 30px system-ui';
+  context.fillText(`${t('feelsLike')}: ${formatTemperature(current.apparent_temperature, state.settings.unit)}   ·   ${t('humidity')}: ${current.relative_humidity_2m}%   ·   ${t('wind')}: ${current.wind_speed_10m} km/h`, 70, 485);
+  context.fillStyle = 'rgba(255,255,255,.8)';
+  context.font = '400 24px system-ui';
+  context.fillText('Open-Meteo · weather-app', 70, 570);
+
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  const text = `${state.currentLocation.label}: ${formatTemperature(current.temperature_2m, state.settings.unit)}, ${weatherLabel(current.weather_code, state.settings.language)}`;
+  if (blob && navigator.share && navigator.canShare?.({ files: [new File([blob], 'weather.png', { type: 'image/png' })] })) {
+    await navigator.share({ title: t('appTitle'), text, files: [new File([blob], 'weather.png', { type: 'image/png' })] }).catch(() => {});
+    return;
+  }
+  if (blob) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `weather-${normalizeForSearch(state.currentLocation.name)}.png`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showToast(t('savedCard'));
+  } else if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+    showToast(t('copied'));
+  }
+}
+
+function updateConnectionStatus() {
+  if (!navigator.onLine) {
+    elements.offlineBanner.textContent = t('offline');
+    elements.offlineBanner.hidden = false;
+  } else {
+    elements.offlineBanner.hidden = true;
+  }
+}
+
+async function installApp() {
+  if (!state.installPrompt) {
+    showToast(t('installUnavailable'));
+    return;
+  }
+  await state.installPrompt.prompt();
+  await state.installPrompt.userChoice;
+  state.installPrompt = null;
+  elements.installBtn.hidden = true;
+}
+
+function bindEvents() {
+  elements.searchForm.addEventListener('submit', event => { event.preventDefault(); handleSearch(); });
+  elements.cityInput.addEventListener('input', debounce(event => {
+    renderSuggestions(searchDistricts(event.target.value, state.settings.language), event.target.value);
+  }));
+  elements.cityInput.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown') {
+      const first = elements.suggestions.querySelector('.suggestion-item');
+      if (first) { event.preventDefault(); first.focus(); }
+    } else if (event.key === 'Escape') {
+      renderSuggestions([], '');
+    }
+  });
+  elements.clearBtn.addEventListener('click', () => {
+    elements.cityInput.value = '';
+    renderSuggestions([], '');
+    elements.cityInput.focus();
+  });
+  elements.locationBtn.addEventListener('click', handleUseLocation);
+  elements.unitCBtn.addEventListener('click', () => { state.settings.unit = 'C'; saveSettings(state.settings); applySettings(); });
+  elements.unitFBtn.addEventListener('click', () => { state.settings.unit = 'F'; saveSettings(state.settings); applySettings(); });
+  elements.themeBtn.addEventListener('click', () => {
+    state.settings.theme = resolvedTheme() === 'dark' ? 'light' : 'dark';
+    saveSettings(state.settings);
+    applySettings();
+  });
+  elements.languageBtn.addEventListener('click', () => {
+    state.settings.language = state.settings.language === 'tr' ? 'en' : 'tr';
+    saveSettings(state.settings);
+    applySettings();
+  });
+  elements.clearRecentBtn.addEventListener('click', () => { clearRecent(); renderSavedLocations(); });
+  elements.compareBtn.addEventListener('click', compareFavorites);
+  elements.helpBtn.addEventListener('click', () => elements.helpDialog.showModal());
+  elements.allowIpBtn.addEventListener('click', useApproximateIpLocation);
+  elements.installBtn.addEventListener('click', installApp);
+  window.addEventListener('online', () => { updateConnectionStatus(); showToast(t('backOnline')); });
+  window.addEventListener('offline', updateConnectionStatus);
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    state.installPrompt = event;
+    elements.installBtn.hidden = false;
+  });
+  document.addEventListener('click', event => {
+    if (!elements.suggestions.contains(event.target) && event.target !== elements.cityInput) renderSuggestions([], '');
+  });
+}
+
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    state.serviceWorkerRegistration = await navigator.serviceWorker.register('./service-worker.js');
+  } catch {
+    // PWA features are optional; core weather search remains available.
+  }
+}
+
+async function initialize() {
+  applySettings();
+  bindEvents();
+  updateConnectionStatus();
+  renderSavedLocations();
+  registerServiceWorker();
+  try {
+    await loadDistrictIndex();
+  } catch {
+    showNotice(t('searchDataError'), 'error');
+  }
+  if (!navigator.onLine) {
+    const latest = getLatestWeatherCache();
+    if (latest?.payload) {
+      state.currentLocation = latest.payload.location;
+      state.currentBundle = latest.payload.bundle;
+      state.currentSavedAt = latest.savedAt;
+      state.currentIsCached = true;
+      elements.cityInput.value = state.currentLocation.label;
+      renderWeather();
+      showNotice(t('cached', { time: formatLocalTime(latest.savedAt, state.settings.language) }), 'warning');
+    }
+  }
+}
+
+initialize();
