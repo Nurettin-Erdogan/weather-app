@@ -10,7 +10,13 @@ const useLocationBtn = document.getElementById('useLocationBtn');
 
 let unit = localStorage.getItem('weather_unit') || 'C';
 let lastWeatherData = null;
-let lastLocation = { latitude: null, longitude: null, name: '', country: '' };
+let lastLocation = {
+  latitude: null,
+  longitude: null,
+  name: '',
+  country: ''
+};
+
 let localDistrictsFlat = [];
 let fuseSearch = null;
 let suggestionIdCounter = 0;
@@ -69,8 +75,8 @@ function normalizeForSearch(value) {
 
   try {
     text = text.normalize('NFD').replace(/\p{M}/gu, '');
-  } catch (e) {
-    // Eski tarayıcılarda Unicode normalize desteklenmeyebilir.
+  } catch (error) {
+    debugWarn('Normalize desteklenmedi:', error);
   }
 
   text = text
@@ -117,7 +123,9 @@ function formatTemp(celsius) {
 
   if (Number.isNaN(number)) return '—';
 
-  if (unit === 'C') return `${Math.round(number)} °C`;
+  if (unit === 'C') {
+    return `${Math.round(number)} °C`;
+  }
 
   return `${Math.round((number * 9 / 5) + 32)} °F`;
 }
@@ -126,18 +134,28 @@ function setActiveUnitButton() {
   if (unitCBtn) {
     unitCBtn.setAttribute('aria-pressed', unit === 'C' ? 'true' : 'false');
     unitCBtn.setAttribute('aria-checked', unit === 'C' ? 'true' : 'false');
+    unitCBtn.classList.toggle('active', unit === 'C');
   }
 
   if (unitFBtn) {
     unitFBtn.setAttribute('aria-pressed', unit === 'F' ? 'true' : 'false');
     unitFBtn.setAttribute('aria-checked', unit === 'F' ? 'true' : 'false');
+    unitFBtn.classList.toggle('active', unit === 'F');
   }
 }
 
 function isValidCoordinate(lat, lon) {
   const nLat = Number(lat);
   const nLon = Number(lon);
-  return !Number.isNaN(nLat) && !Number.isNaN(nLon);
+
+  return (
+    !Number.isNaN(nLat) &&
+    !Number.isNaN(nLon) &&
+    nLat >= -90 &&
+    nLat <= 90 &&
+    nLon >= -180 &&
+    nLon <= 180
+  );
 }
 
 function showInitialMessage() {
@@ -179,8 +197,18 @@ function flattenLocalDistricts(json) {
   const flat = [];
 
   for (const provinceItem of provinces) {
-    const province = provinceItem.il_adi || provinceItem.province || provinceItem.name || provinceItem.il || '';
-    const districts = provinceItem.ilceler || provinceItem.districts || provinceItem.children || [];
+    const province =
+      provinceItem.il_adi ||
+      provinceItem.province ||
+      provinceItem.name ||
+      provinceItem.il ||
+      '';
+
+    const districts =
+      provinceItem.ilceler ||
+      provinceItem.districts ||
+      provinceItem.children ||
+      [];
 
     for (const districtItem of districts) {
       let district = '';
@@ -190,7 +218,13 @@ function flattenLocalDistricts(json) {
       if (typeof districtItem === 'string') {
         district = districtItem;
       } else {
-        district = districtItem.ilce_adi || districtItem.ilce || districtItem.name || districtItem.district || '';
+        district =
+          districtItem.ilce_adi ||
+          districtItem.ilce ||
+          districtItem.name ||
+          districtItem.district ||
+          '';
+
         latitude = districtItem.latitude ?? districtItem.lat ?? null;
         longitude = districtItem.longitude ?? districtItem.lon ?? districtItem.lng ?? null;
       }
@@ -245,7 +279,11 @@ function parseDistrictProvinceQuery(query) {
   const clean = stripLocationPrefix(query);
 
   if (clean.includes('/')) {
-    const parts = clean.split('/').map(part => normalizeForSearch(part)).filter(Boolean);
+    const parts = clean
+      .split('/')
+      .map(part => normalizeForSearch(part))
+      .filter(Boolean);
+
     return {
       district: parts[0] || '',
       province: parts[1] || '',
@@ -302,7 +340,9 @@ function findBestLocalDistrict(query) {
     }
   }
 
-  if (best && bestScore >= 70) return best;
+  if (best && bestScore >= 70) {
+    return best;
+  }
 
   if (!parsed.province && fuseSearch) {
     try {
@@ -332,7 +372,7 @@ async function searchSuggestions(query) {
   const q = String(query || '').trim();
 
   if (!q) {
-    renderSuggestions([], '');
+    renderSuggestions([]);
     return;
   }
 
@@ -369,15 +409,17 @@ async function searchSuggestions(query) {
 
   for (const item of results) {
     const key = `${normalizeForSearch(item.name)}|${normalizeForSearch(item.admin1)}`;
+
     if (seen.has(key)) continue;
+
     seen.add(key);
     dedup.push(item);
   }
 
-  renderSuggestions(dedup.slice(0, 7), q);
+  renderSuggestions(dedup.slice(0, 7));
 }
 
-function renderSuggestions(items, q) {
+function renderSuggestions(items) {
   if (!suggestionsContainer) return;
 
   suggestionsContainer.innerHTML = '';
@@ -386,7 +428,7 @@ function renderSuggestions(items, q) {
     cityInput.setAttribute('aria-expanded', items && items.length ? 'true' : 'false');
   }
 
-  if (!items || items.length === 0) return;
+  if (!items || !items.length) return;
 
   items.forEach((item, index) => {
     const div = document.createElement('div');
@@ -415,22 +457,31 @@ function renderSuggestions(items, q) {
       suggestionsContainer.querySelectorAll('.suggestion-item').forEach(suggestion => {
         suggestion.setAttribute('aria-selected', 'false');
       });
+
       div.setAttribute('aria-selected', 'true');
     });
 
-    div.addEventListener('keydown', (event) => {
+    div.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         selectSuggestionFromElement(div);
       } else if (event.key === 'ArrowDown') {
         event.preventDefault();
-        if (div.nextElementSibling) div.nextElementSibling.focus();
+
+        if (div.nextElementSibling) {
+          div.nextElementSibling.focus();
+        }
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
-        if (div.previousElementSibling) div.previousElementSibling.focus();
-        else if (cityInput) cityInput.focus();
+
+        if (div.previousElementSibling) {
+          div.previousElementSibling.focus();
+        } else if (cityInput) {
+          cityInput.focus();
+        }
       } else if (event.key === 'Escape') {
         suggestionsContainer.innerHTML = '';
+
         if (cityInput) {
           cityInput.focus();
           cityInput.setAttribute('aria-expanded', 'false');
@@ -449,12 +500,16 @@ function selectSuggestionFromElement(el) {
   const admin1 = el.dataset.admin1 || '';
   const country = el.dataset.country || 'Türkiye';
 
-  const displayName = admin1 ? `${toTitleCaseTR(name)} / ${toTitleCaseTR(admin1)}` : toTitleCaseTR(name);
+  const displayName = admin1
+    ? `${toTitleCaseTR(name)} / ${toTitleCaseTR(admin1)}`
+    : toTitleCaseTR(name);
 
   cityInput.value = displayName;
   suggestionsContainer.innerHTML = '';
 
-  if (cityInput) cityInput.setAttribute('aria-expanded', 'false');
+  if (cityInput) {
+    cityInput.setAttribute('aria-expanded', 'false');
+  }
 
   if (isValidCoordinate(lat, lon)) {
     fetchAndRender(lat, lon, toTitleCaseTR(name), country || 'Türkiye');
@@ -483,14 +538,17 @@ async function fetchAndRender(latitude, longitude, name = '', country = '') {
       `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
       `&timezone=auto`;
 
-    debugWarn('Weather URL:', weatherUrl);
-
     const response = await fetch(weatherUrl);
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       debugError('Open-Meteo HTTP hatası:', response.status, text);
-      showResultError(`Hava servisi kullanılamıyor. (${response.status})`, () => fetchAndRender(latitude, longitude, name, country));
+
+      showResultError(
+        `Hava servisi kullanılamıyor. (${response.status})`,
+        () => fetchAndRender(latitude, longitude, name, country)
+      );
+
       return;
     }
 
@@ -501,15 +559,27 @@ async function fetchAndRender(latitude, longitude, name = '', country = '') {
 
     if (!weather || !weather.current_weather) {
       debugError('Beklenen current_weather alanı yok:', weather);
-      showResultError('Hava verisi alınamadı.', () => fetchAndRender(latitude, longitude, name, country));
+
+      showResultError(
+        'Hava verisi alınamadı.',
+        () => fetchAndRender(latitude, longitude, name, country)
+      );
+
       return;
     }
 
     lastWeatherData = weather;
-    lastLocation = { latitude, longitude, name, country };
+    lastLocation = {
+      latitude,
+      longitude,
+      name,
+      country
+    };
+
     renderWeatherFromData(weather, name, country);
   } catch (error) {
     debugError('fetchAndRender genel hata:', error);
+
     showResultError(
       'Hava servisine şu anda ulaşılamadı. İnternet bağlantınızı kontrol edin veya birkaç saniye sonra tekrar deneyin.',
       () => fetchAndRender(latitude, longitude, name, country)
@@ -520,6 +590,8 @@ async function fetchAndRender(latitude, longitude, name = '', country = '') {
 }
 
 function renderWeatherFromData(weatherData, name = '', country = '') {
+  if (!resultDiv) return;
+
   const current = weatherData.current_weather;
 
   if (!current) {
@@ -548,6 +620,7 @@ function renderWeatherFromData(weatherData, name = '', country = '') {
   `;
 
   const dailyHtml = buildDailyHtml(weatherData);
+
   const hintHtml = dailyHtml
     ? '<p class="forecast-hint">Günlük kartlara tıklayarak saatlik tahmini görebilirsin.</p>'
     : '';
@@ -577,7 +650,10 @@ function buildDailyHtml(weatherData) {
     let dayLabel = times[i];
 
     try {
-      dayLabel = new Date(times[i]).toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric' });
+      dayLabel = new Date(times[i]).toLocaleDateString('tr-TR', {
+        weekday: 'short',
+        day: 'numeric'
+      });
     } catch (error) {
       debugWarn('Tarih formatlama hatası:', error);
     }
@@ -632,14 +708,23 @@ function attachHourlyPanel(weatherData) {
       hourlyPanel.classList.remove('open');
       hourlyPanel.setAttribute('aria-hidden', 'true');
       hourlyPanel.dataset.date = '';
-      cards.forEach(card => card.setAttribute('aria-expanded', 'false'));
-      if (lastOpenedCard) lastOpenedCard.focus();
+
+      cards.forEach(card => {
+        card.setAttribute('aria-expanded', 'false');
+      });
+
+      if (lastOpenedCard) {
+        lastOpenedCard.focus();
+      }
+
       lastOpenedCard = null;
       document.removeEventListener('keydown', hourlyEscHandler);
     }
 
     function hourlyEscHandler(event) {
-      if (event.key === 'Escape') closeHourly();
+      if (event.key === 'Escape') {
+        closeHourly();
+      }
     }
 
     closeBtn.addEventListener('click', closeHourly);
@@ -647,6 +732,7 @@ function attachHourlyPanel(weatherData) {
     cards.forEach((card, index) => {
       card.addEventListener('click', () => {
         const date = dailyTimes[index];
+
         if (!date) return;
 
         if (hourlyPanel.dataset.date === date && hourlyPanel.classList.contains('open')) {
@@ -658,6 +744,7 @@ function attachHourlyPanel(weatherData) {
 
         for (let i = 0; i < hourTimes.length; i++) {
           const time = hourTimes[i];
+
           if (!time || !time.startsWith(date)) continue;
 
           rows.push({
@@ -678,7 +765,10 @@ function attachHourlyPanel(weatherData) {
             const row = document.createElement('div');
             row.className = 'hour-row';
 
-            const timeLabel = new Date(rowData.time).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const timeLabel = new Date(rowData.time).toLocaleTimeString('tr-TR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
 
             row.innerHTML = `
               <div class="hour-time">${escapeHtml(timeLabel)}</div>
@@ -693,14 +783,19 @@ function attachHourlyPanel(weatherData) {
         hourlyPanel.dataset.date = date;
         hourlyPanel.classList.add('open');
         hourlyPanel.setAttribute('aria-hidden', 'false');
-        cards.forEach(item => item.setAttribute('aria-expanded', 'false'));
+
+        cards.forEach(item => {
+          item.setAttribute('aria-expanded', 'false');
+        });
+
         card.setAttribute('aria-expanded', 'true');
         lastOpenedCard = card;
         closeBtn.focus();
+
         document.addEventListener('keydown', hourlyEscHandler);
       });
 
-      card.addEventListener('keydown', (event) => {
+      card.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           card.click();
@@ -755,18 +850,28 @@ function getIcon(code) {
 
 function updateWeatherBackground(code) {
   code = Number(code);
+
   const body = document.body;
+
   if (!body) return;
 
   body.classList.remove('clear', 'cloudy', 'rain', 'snow', 'fog', 'thunder');
 
-  if ([0].includes(code)) body.classList.add('clear');
-  else if ([1, 2, 3].includes(code)) body.classList.add('cloudy');
-  else if ([45, 48].includes(code)) body.classList.add('fog');
-  else if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) body.classList.add('rain');
-  else if ([71, 73, 75, 77, 85, 86].includes(code)) body.classList.add('snow');
-  else if ([95, 96, 99].includes(code)) body.classList.add('thunder');
-  else body.classList.add('cloudy');
+  if ([0].includes(code)) {
+    body.classList.add('clear');
+  } else if ([1, 2, 3].includes(code)) {
+    body.classList.add('cloudy');
+  } else if ([45, 48].includes(code)) {
+    body.classList.add('fog');
+  } else if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
+    body.classList.add('rain');
+  } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
+    body.classList.add('snow');
+  } else if ([95, 96, 99].includes(code)) {
+    body.classList.add('thunder');
+  } else {
+    body.classList.add('cloudy');
+  }
 }
 
 const weatherCodeMap = {
@@ -817,23 +922,30 @@ function showResultError(message, retryCallback) {
   const p = document.createElement('p');
   p.className = 'error-text';
   p.textContent = message || 'Bir hata oluştu.';
+
   container.appendChild(p);
 
   if (typeof retryCallback === 'function') {
     const btn = document.createElement('button');
+
     btn.textContent = 'Tekrar Dene';
     btn.className = 'unit-btn retry-btn';
     btn.type = 'button';
 
     btn.addEventListener('click', async () => {
       if (btn.disabled) return;
+
       btn.disabled = true;
+
       const oldText = btn.textContent;
       btn.textContent = 'Bekleniyor...';
 
       try {
         const result = retryCallback();
-        if (result && typeof result.then === 'function') await result;
+
+        if (result && typeof result.then === 'function') {
+          await result;
+        }
       } finally {
         btn.disabled = false;
         btn.textContent = oldText;
@@ -847,9 +959,19 @@ function showResultError(message, retryCallback) {
 }
 
 function setLoading(isLoading) {
-  const controls = [cityInput, searchBtn, clearBtn, useLocationBtn, unitCBtn, unitFBtn];
+  const controls = [
+    cityInput,
+    searchBtn,
+    clearBtn,
+    useLocationBtn,
+    unitCBtn,
+    unitFBtn
+  ];
+
   controls.forEach(element => {
-    if (element) element.disabled = !!isLoading;
+    if (element) {
+      element.disabled = !!isLoading;
+    }
   });
 
   if (!resultDiv) return;
@@ -862,12 +984,14 @@ function setLoading(isLoading) {
         <div class="loading-message">Yükleniyor...</div>
       </div>
     `;
+
     document.body.classList.add('loading-active');
   } else {
     resultDiv.removeAttribute('aria-busy');
     document.body.classList.remove('loading-active');
   }
 }
+
 /* =========================================================
    SON ARAMALAR KAPALI
 ========================================================= */
@@ -876,45 +1000,17 @@ function getRecentList() {
   return [];
 }
 
-function saveRecent(value) {
-  // Arama geçmişi kaydedilmesin diye bilinçli olarak boş bırakıldı.
+function saveRecent() {
   localStorage.removeItem('weather_recent');
 }
 
 function renderRecent() {
-  // Daha önce kaydedilmiş geçmiş varsa temizle.
   localStorage.removeItem('weather_recent');
 
   const container = document.getElementById('recent');
+
   if (container) {
     container.innerHTML = '';
-  }
-}
-
-  container.innerHTML = `
-    <div class="recent-head">
-      <div class="recent-title"><strong>Son Aramalar</strong></div>
-      <button id="clearRecentBtn" class="clear-recent-btn" type="button">Temizle</button>
-    </div>
-    <div class="recent-list">
-      ${arr.map(item => `<button class="recent-item" type="button">${escapeHtml(item)}</button>`).join('')}
-    </div>
-  `;
-
-  container.querySelectorAll('.recent-item').forEach(button => {
-    button.addEventListener('click', () => {
-      cityInput.value = button.textContent;
-      handleSearch();
-    });
-  });
-
-  const clearRecentBtn = container.querySelector('#clearRecentBtn');
-
-  if (clearRecentBtn) {
-    clearRecentBtn.addEventListener('click', () => {
-      localStorage.removeItem('weather_recent');
-      renderRecent();
-    });
   }
 }
 
@@ -925,11 +1021,22 @@ function renderRecent() {
 async function searchLocationRemote(query) {
   try {
     const cleanQuery = stripLocationPrefix(query);
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanQuery)}&count=1&language=tr&format=json`;
+
+    const url =
+      `https://geocoding-api.open-meteo.com/v1/search` +
+      `?name=${encodeURIComponent(cleanQuery)}` +
+      `&count=1` +
+      `&language=tr` +
+      `&format=json`;
+
     const response = await fetch(url);
 
     if (!response.ok) {
-      showResultError('Konum servisi kullanılamıyor. Lütfen tekrar deneyin.', () => searchLocationRemote(cleanQuery));
+      showResultError(
+        'Konum servisi kullanılamıyor. Lütfen tekrar deneyin.',
+        () => searchLocationRemote(cleanQuery)
+      );
+
       return;
     }
 
@@ -945,19 +1052,29 @@ async function searchLocationRemote(query) {
     const country = location.country || '';
 
     await fetchAndRender(location.latitude, location.longitude, name, country);
-    saveRecent(location.admin1 ? `${name} / ${location.admin1}` : name);
+    saveRecent();
   } catch (error) {
     debugWarn('Uzak konum arama hatası:', error);
-    showResultError('Arama başarısız. Ağ bağlantınızı kontrol edip tekrar deneyin.', () => searchLocationRemote(query));
+
+    showResultError(
+      'Arama başarısız. Ağ bağlantınızı kontrol edip tekrar deneyin.',
+      () => searchLocationRemote(query)
+    );
   }
 }
 
 async function handleSearch() {
   const query = stripLocationPrefix(cityInput.value).trim();
+
   if (!query) return;
 
-  if (suggestionsContainer) suggestionsContainer.innerHTML = '';
-  if (cityInput) cityInput.setAttribute('aria-expanded', 'false');
+  if (suggestionsContainer) {
+    suggestionsContainer.innerHTML = '';
+  }
+
+  if (cityInput) {
+    cityInput.setAttribute('aria-expanded', 'false');
+  }
 
   showGeoNotice('');
 
@@ -971,7 +1088,8 @@ async function handleSearch() {
     cityInput.value = displayName;
 
     await fetchAndRender(localMatch.latitude, localMatch.longitude, niceDistrict, 'Türkiye');
-    saveRecent(displayName);
+    saveRecent();
+
     return;
   }
 
@@ -984,6 +1102,7 @@ async function handleSearch() {
 
 function showGeoNotice(message, isError = false) {
   const element = document.getElementById('geoNotice');
+
   if (!element) return;
 
   if (!message) {
@@ -1014,8 +1133,9 @@ function showGeoNotice(message, isError = false) {
   element.setAttribute('tabindex', '-1');
 
   const help = document.getElementById('geoHelpLink');
+
   if (help) {
-    help.addEventListener('click', (event) => {
+    help.addEventListener('click', event => {
       event.preventDefault();
       openGeoModal();
     });
@@ -1024,23 +1144,31 @@ function showGeoNotice(message, isError = false) {
 
 function openGeoModal() {
   const overlay = document.getElementById('geoModalOverlay');
+
   if (!overlay) return;
+
   overlay.hidden = false;
   overlay.style.display = 'flex';
 
   const closeButton = document.getElementById('geoModalClose');
-  if (closeButton) closeButton.focus();
+
+  if (closeButton) {
+    closeButton.focus();
+  }
 }
 
 function closeGeoModal() {
   const overlay = document.getElementById('geoModalOverlay');
+
   if (!overlay) return;
+
   overlay.hidden = true;
   overlay.style.display = 'none';
 }
 
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
+
   const dLat = (Number(lat2) - Number(lat1)) * Math.PI / 180;
   const dLon = (Number(lon2) - Number(lon1)) * Math.PI / 180;
 
@@ -1063,7 +1191,12 @@ function findNearestLocalDistrict(latitude, longitude) {
   for (const item of localDistrictsFlat) {
     if (!isValidCoordinate(item.latitude, item.longitude)) continue;
 
-    const distance = distanceKm(latitude, longitude, item.latitude, item.longitude);
+    const distance = distanceKm(
+      latitude,
+      longitude,
+      item.latitude,
+      item.longitude
+    );
 
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -1096,9 +1229,11 @@ async function ipFallback() {
   for (const url of endpoints) {
     try {
       const response = await fetch(url);
+
       if (!response.ok) continue;
 
       const data = await response.json().catch(() => null);
+
       if (!data) continue;
 
       let lat = data.latitude !== undefined ? Number(data.latitude) : Number(data.lat);
@@ -1106,6 +1241,7 @@ async function ipFallback() {
 
       if ((!lat || !lon) && data.loc && typeof data.loc === 'string' && data.loc.includes(',')) {
         const parts = data.loc.split(',').map(part => part.trim());
+
         lat = Number(parts[0]);
         lon = Number(parts[1]);
       }
@@ -1133,11 +1269,19 @@ function handleUseLocation() {
     return;
   }
 
+  if (suggestionsContainer) {
+    suggestionsContainer.innerHTML = '';
+  }
+
+  if (cityInput) {
+    cityInput.setAttribute('aria-expanded', 'false');
+  }
+
   showGeoNotice('Konum isteniyor…', false);
   setLoading(true);
 
   navigator.geolocation.getCurrentPosition(
-    async (position) => {
+    async position => {
       setLoading(false);
       showGeoNotice('');
 
@@ -1146,18 +1290,35 @@ function handleUseLocation() {
 
       if (!isValidCoordinate(latitude, longitude)) {
         showGeoNotice('Konum alınamadı.', true);
-        if (!lastWeatherData) showInitialMessage();
+
+        if (!lastWeatherData) {
+          showInitialMessage();
+        }
+
         return;
       }
 
       const nearest = await reverseGeocode(latitude, longitude);
+
       const placeName = nearest?.name || 'Konumum';
-      const country = nearest?.country || '';
+      const provinceName = nearest?.admin1 || '';
+      const country = nearest?.country || 'Türkiye';
+
+      const displayName = provinceName
+        ? `${toTitleCaseTR(placeName)} / ${toTitleCaseTR(provinceName)}`
+        : `Konumum: ${toTitleCaseTR(placeName)}`;
+
+      // Eski arama yazısını temizleyip konumu input'a yazıyoruz.
+      if (cityInput) {
+        cityInput.value = displayName;
+      }
 
       await fetchAndRender(latitude, longitude, placeName, country);
-      saveRecent(`Konumum: ${toTitleCaseTR(placeName)}`);
+
+      // Arama geçmişi kapalı olduğu için saveRecent sadece geçmişi temizler.
+      saveRecent();
     },
-    async (error) => {
+    async error => {
       setLoading(false);
 
       if (error && error.code === 1) {
@@ -1167,21 +1328,44 @@ function handleUseLocation() {
 
         if (location && isValidCoordinate(location.latitude, location.longitude)) {
           const nearest = await reverseGeocode(location.latitude, location.longitude);
+
           const placeName = nearest?.name || location.city || 'Yaklaşık konum';
-          const country = nearest?.country || location.country || '';
+          const provinceName = nearest?.admin1 || '';
+          const country = nearest?.country || location.country || 'Türkiye';
+
+          const displayName = provinceName
+            ? `${toTitleCaseTR(placeName)} / ${toTitleCaseTR(provinceName)}`
+            : `Konumum: ${toTitleCaseTR(placeName)}`;
+
+          // IP fallback çalışırsa da input eski aramada kalmasın.
+          if (cityInput) {
+            cityInput.value = displayName;
+          }
 
           await fetchAndRender(location.latitude, location.longitude, placeName, country);
-          saveRecent(`IP konumu: ${toTitleCaseTR(placeName)}`);
+
+          // Arama geçmişi kapalı.
+          saveRecent();
         } else {
           showGeoNotice('IP tabanlı konum alınamadı. Manuel arama yapın.', true);
-          if (!lastWeatherData) showInitialMessage();
+
+          if (!lastWeatherData) {
+            showInitialMessage();
+          }
         }
       } else {
         showGeoNotice('Konum alınamadı: ' + (error?.message || 'Bilinmeyen hata'), true);
-        if (!lastWeatherData) showInitialMessage();
+
+        if (!lastWeatherData) {
+          showInitialMessage();
+        }
       }
     },
-    { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 600000
+    }
   );
 }
 
@@ -1200,6 +1384,7 @@ if (cityInput) {
       handleSearch();
     } else if (event.key === 'ArrowDown') {
       const first = suggestionsContainer?.querySelector('.suggestion-item');
+
       if (first) {
         first.focus();
         event.preventDefault();
@@ -1211,7 +1396,11 @@ if (cityInput) {
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
     cityInput.value = '';
-    if (suggestionsContainer) suggestionsContainer.innerHTML = '';
+
+    if (suggestionsContainer) {
+      suggestionsContainer.innerHTML = '';
+    }
+
     if (cityInput) {
       cityInput.focus();
       cityInput.setAttribute('aria-expanded', 'false');
@@ -1238,7 +1427,10 @@ if (unitCBtn) {
     unit = 'C';
     localStorage.setItem('weather_unit', unit);
     setActiveUnitButton();
-    if (lastWeatherData) renderWeatherFromData(lastWeatherData, lastLocation.name, lastLocation.country);
+
+    if (lastWeatherData) {
+      renderWeatherFromData(lastWeatherData, lastLocation.name, lastLocation.country);
+    }
   });
 }
 
@@ -1247,7 +1439,10 @@ if (unitFBtn) {
     unit = 'F';
     localStorage.setItem('weather_unit', unit);
     setActiveUnitButton();
-    if (lastWeatherData) renderWeatherFromData(lastWeatherData, lastLocation.name, lastLocation.country);
+
+    if (lastWeatherData) {
+      renderWeatherFromData(lastWeatherData, lastLocation.name, lastLocation.country);
+    }
   });
 }
 
@@ -1257,8 +1452,14 @@ if (useLocationBtn) {
 
 document.addEventListener('click', event => {
   if (!event.target) return;
-  if (event.target.id === 'geoModalClose') closeGeoModal();
-  if (event.target.id === 'geoModalOverlay') closeGeoModal();
+
+  if (event.target.id === 'geoModalClose') {
+    closeGeoModal();
+  }
+
+  if (event.target.id === 'geoModalOverlay') {
+    closeGeoModal();
+  }
 });
 
 /* =========================================================
@@ -1269,10 +1470,13 @@ window.reindexLocalDistricts = reindexLocalDistricts;
 
 window.addEventListener('load', async () => {
   try {
+    localStorage.removeItem('weather_recent');
+
     showGeoNotice('');
     showInitialMessage();
     renderRecent();
     setActiveUnitButton();
+
     await reindexLocalDistricts();
 
     if (navigator.permissions && navigator.permissions.query) {
