@@ -1,9 +1,9 @@
-const CACHE_VERSION = 'weather-app-v3';
+const CACHE_VERSION = 'weather-app-v5-cache-reset';
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
+  './style.css?v=20260615-2',
+  './app.js?v=20260615-2',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/icon-192.png',
@@ -25,11 +25,12 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key)),
-    )),
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key)),
+      ))
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
 function isWeatherRequest(url) {
@@ -59,13 +60,17 @@ self.addEventListener('fetch', event => {
 
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+      fetch(event.request).then(response => {
         if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
         }
         return response;
-      }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : undefined)),
+      }).catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        return event.request.mode === 'navigate' ? caches.match('./index.html') : undefined;
+      }),
     );
   }
 });

@@ -8,7 +8,7 @@ import {
 } from './js/storage.js';
 import {
   airQualityLabel, cacheKey, debounce, escapeHtml, formatDay, formatHour,
-  formatLocalTime, formatTemperature, mapUrls, normalizeForSearch, windDirection,
+  formatLocalTime, formatTemperature, normalizeForSearch, windDirection,
 } from './js/utils.js';
 import { weatherIcon, weatherLabel, weatherTheme } from './js/weather-codes.js';
 
@@ -17,7 +17,7 @@ const elements = Object.fromEntries([
   'unitCBtn', 'unitFBtn', 'notice', 'result', 'favoritesSection', 'favoritesList',
   'compareBtn', 'recentSection', 'recentList', 'clearRecentBtn', 'themeBtn',
   'languageBtn', 'installBtn', 'offlineBanner', 'helpBtn', 'ipDialog', 'allowIpBtn',
-  'helpDialog', 'compareDialog', 'compareContent', 'shareCanvas', 'toast',
+  'helpDialog', 'compareDialog', 'compareContent', 'toast',
 ].map(id => [id, document.getElementById(id)]));
 
 const state = {
@@ -154,7 +154,6 @@ function renderSavedLocations() {
       const location = favorites.find(item => item.id === button.dataset.removeId);
       if (location) toggleFavorite(location);
       renderSavedLocations();
-      updateFavoriteButton();
     });
   });
   elements.recentList.querySelectorAll('[data-recent-id]').forEach(button => {
@@ -266,7 +265,6 @@ async function openWeather(location, options = {}) {
     if (options.addToRecent !== false) addRecent(safeLocation);
     renderWeather();
     renderSavedLocations();
-    maybeNotifyRain(false);
   } catch (error) {
     if (error.name === 'AbortError') return;
     const cached = getWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude));
@@ -313,15 +311,12 @@ function renderWeather() {
   const location = state.currentLocation;
   const language = state.settings.language;
   const unit = state.settings.unit;
-  const isFavorite = getFavorites().some(item => item.id === location.id);
   const air = airQuality?.current || {};
-  const urls = mapUrls(location.latitude, location.longitude);
   const condition = weatherLabel(current.weather_code, language);
   const icon = weatherIcon(current.weather_code, current.is_day);
   const updated = formatLocalTime(current.time, language);
   const firstSunrise = daily.sunrise?.[0] ? formatHour(daily.sunrise[0]) : '—';
   const firstSunset = daily.sunset?.[0] ? formatHour(daily.sunset[0]) : '—';
-  const favoriteLabel = isFavorite ? t('removeFavorite') : t('addFavorite');
   const staleBadge = state.currentIsCached ? `<span class="status-badge">${escapeHtml(t('stale'))}</span>` : '';
 
   document.body.dataset.weather = weatherTheme(current.weather_code, current.is_day);
@@ -338,13 +333,6 @@ function renderWeather() {
           <strong>${escapeHtml(formatTemperature(current.temperature_2m, unit))}</strong>
           <small>${escapeHtml(t('feelsLike'))} ${escapeHtml(formatTemperature(current.apparent_temperature, unit))}</small>
         </div>
-      </div>
-      <div class="weather-actions">
-        <button id="favoriteBtn" class="action-button ${isFavorite ? 'active' : ''}" type="button">${isFavorite ? '★' : '☆'} ${escapeHtml(favoriteLabel)}</button>
-        <button id="shareBtn" class="action-button" type="button">↗ ${escapeHtml(t('share'))}</button>
-        <a class="action-button" href="${urls.map}" target="_blank" rel="noopener noreferrer">⌖ ${escapeHtml(t('map'))}</a>
-        <a class="action-button" href="${urls.radar}" target="_blank" rel="noopener noreferrer">◉ ${escapeHtml(t('radar'))}</a>
-        <button id="rainAlertBtn" class="action-button ${state.settings.rainAlerts ? 'active' : ''}" type="button">♢ ${escapeHtml(state.settings.rainAlerts ? t('alertEnabled') : t('rainAlerts'))}</button>
       </div>
     </section>
 
@@ -389,9 +377,6 @@ function renderWeather() {
       renderHourlyRows(card.dataset.date);
     });
   });
-  document.getElementById('favoriteBtn')?.addEventListener('click', handleFavorite);
-  document.getElementById('shareBtn')?.addEventListener('click', shareForecastCard);
-  document.getElementById('rainAlertBtn')?.addEventListener('click', enableRainAlerts);
 }
 
 function renderHourlyRows(date) {
@@ -407,17 +392,6 @@ function renderHourlyRows(date) {
       <small>💧 %${hourly.precipitation_probability?.[index] ?? 0}</small>
       <small>${hourly.relative_humidity_2m?.[index] ?? '—'}%</small>
     </article>`).join('');
-}
-
-function updateFavoriteButton() {
-  if (state.currentBundle) renderWeather();
-}
-
-function handleFavorite() {
-  if (!state.currentLocation) return;
-  toggleFavorite(state.currentLocation);
-  renderSavedLocations();
-  updateFavoriteButton();
 }
 
 async function compareFavorites() {
@@ -504,97 +478,6 @@ async function useApproximateIpLocation() {
   }
 }
 
-function rainChanceSoon() {
-  const weather = state.currentBundle?.weather;
-  if (!weather) return 0;
-  const hourly = weather.hourly || {};
-  const start = Math.max(0, hourly.time?.findIndex(value => value >= weather.current.time) ?? 0);
-  return Math.max(0, ...(hourly.precipitation_probability || []).slice(start, start + 3).map(Number));
-}
-
-async function enableRainAlerts() {
-  if (!('Notification' in window)) {
-    showToast(t('alertDenied'));
-    return;
-  }
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') {
-    showToast(t('alertDenied'));
-    return;
-  }
-  state.settings.rainAlerts = true;
-  saveSettings(state.settings);
-  updateFavoriteButton();
-  await maybeNotifyRain(true);
-}
-
-async function maybeNotifyRain(showNoRainMessage) {
-  if (!state.settings.rainAlerts || Notification.permission !== 'granted' || !state.currentLocation) return;
-  const chance = rainChanceSoon();
-  if (chance < 50) {
-    if (showNoRainMessage) showToast(t('noRainSoon'));
-    return;
-  }
-  const body = t('rainSoon', { place: state.currentLocation.name, chance });
-  if (state.serviceWorkerRegistration) {
-    await state.serviceWorkerRegistration.showNotification(t('rainAlerts'), {
-      body,
-      icon: './icons/icon-192.png',
-      badge: './icons/icon-192.png',
-      tag: `rain-${state.currentLocation.id}`,
-    });
-  } else {
-    new Notification(t('rainAlerts'), { body, icon: './icons/icon-192.png' });
-  }
-  showToast(body);
-}
-
-async function shareForecastCard() {
-  if (!state.currentBundle || !state.currentLocation) return;
-  const canvas = elements.shareCanvas;
-  const context = canvas.getContext('2d');
-  const current = state.currentBundle.weather.current;
-  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, '#0f766e');
-  gradient.addColorStop(1, '#2563eb');
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = 'rgba(255,255,255,.12)';
-  context.beginPath(); context.arc(1020, 100, 240, 0, Math.PI * 2); context.fill();
-  context.fillStyle = '#fff';
-  context.font = '700 54px system-ui';
-  context.fillText(state.currentLocation.label, 70, 105);
-  context.font = '180px serif';
-  context.fillText(weatherIcon(current.weather_code, current.is_day), 70, 330);
-  context.font = '800 116px system-ui';
-  context.fillText(formatTemperature(current.temperature_2m, state.settings.unit), 340, 300);
-  context.font = '500 42px system-ui';
-  context.fillText(weatherLabel(current.weather_code, state.settings.language), 350, 365);
-  context.font = '400 30px system-ui';
-  context.fillText(`${t('feelsLike')}: ${formatTemperature(current.apparent_temperature, state.settings.unit)}   ·   ${t('humidity')}: ${current.relative_humidity_2m}%   ·   ${t('wind')}: ${current.wind_speed_10m} km/h`, 70, 485);
-  context.fillStyle = 'rgba(255,255,255,.8)';
-  context.font = '400 24px system-ui';
-  context.fillText('Open-Meteo · weather-app', 70, 570);
-
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-  const text = `${state.currentLocation.label}: ${formatTemperature(current.temperature_2m, state.settings.unit)}, ${weatherLabel(current.weather_code, state.settings.language)}`;
-  if (blob && navigator.share && navigator.canShare?.({ files: [new File([blob], 'weather.png', { type: 'image/png' })] })) {
-    await navigator.share({ title: t('appTitle'), text, files: [new File([blob], 'weather.png', { type: 'image/png' })] }).catch(() => {});
-    return;
-  }
-  if (blob) {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `weather-${normalizeForSearch(state.currentLocation.name)}.png`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    showToast(t('savedCard'));
-  } else if (navigator.clipboard) {
-    await navigator.clipboard.writeText(text);
-    showToast(t('copied'));
-  }
-}
-
 function updateConnectionStatus() {
   if (!navigator.onLine) {
     elements.offlineBanner.textContent = t('offline');
@@ -666,7 +549,17 @@ function bindEvents() {
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    state.serviceWorkerRegistration = await navigator.serviceWorker.register('./service-worker.js');
+    let reloadingForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      location.reload();
+    });
+    state.serviceWorkerRegistration = await navigator.serviceWorker.register(
+      './service-worker.js?v=20260615-2',
+      { updateViaCache: 'none' },
+    );
+    await state.serviceWorkerRegistration.update();
   } catch {
     // PWA features are optional; core weather search remains available.
   }

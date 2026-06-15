@@ -122,15 +122,11 @@ class WeatherAppTests(unittest.TestCase):
         self.assertEqual(self.page.locator("#suggestions .suggestion-item").count(), 0)
         self.assertEqual(self.page_errors, [])
 
-    def test_unit_favorite_language_and_theme_controls(self):
+    def test_unit_language_and_theme_controls(self):
         self.open_app()
         self.search("Karesi")
         self.page.click("#unitFBtn")
         self.assertIn("°F", self.page.locator(".temperature-block strong").inner_text())
-
-        self.page.click("#favoriteBtn")
-        self.assertTrue(self.page.locator("#favoritesSection").is_visible())
-        self.assertEqual(self.page.locator("#favoritesList .location-chip").count(), 1)
 
         self.page.click("#languageBtn")
         self.assertEqual(self.page.locator("html").get_attribute("lang"), "en")
@@ -177,20 +173,13 @@ class WeatherAppTests(unittest.TestCase):
         self.page.wait_for_selector("#retryBtn", timeout=15000)
         self.assertTrue(self.page.locator("#retryBtn").is_visible())
 
-    def test_compare_favorites_and_download_share_card(self):
+    def test_weather_action_row_is_removed(self):
         self.open_app()
         self.search("Karesi")
-        self.page.click("#favoriteBtn")
-        self.search("Darica")
-        self.page.click("#favoriteBtn")
-        self.page.click("#compareBtn")
-        self.page.wait_for_selector(".comparison-card")
-        self.assertEqual(self.page.locator(".comparison-card").count(), 2)
-        self.page.locator("#compareDialog").evaluate("dialog => dialog.close()")
-
-        with self.page.expect_download(timeout=10000) as download_info:
-            self.page.click("#shareBtn")
-        self.assertTrue(download_info.value.suggested_filename.startswith("weather-"))
+        self.assertEqual(self.page.locator(".weather-actions").count(), 0)
+        self.assertEqual(self.page.locator("#favoriteBtn").count(), 0)
+        self.assertEqual(self.page.locator("#shareBtn").count(), 0)
+        self.assertEqual(self.page.locator("#rainAlertBtn").count(), 0)
 
     def test_service_worker_reloads_app_shell_offline(self):
         self.context.close()

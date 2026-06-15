@@ -105,7 +105,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 
 .app-header, .brand, .header-actions, .quick-controls, .section-heading, .compact-heading,
-.weather-actions, .metric-card, .location-chip, .app-footer {
+.metric-card, .location-chip, .app-footer {
   display: flex;
   align-items: center;
 }
@@ -178,7 +178,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   font-size: 23px;
 }
 
-.primary-button, .secondary-button, .action-button {
+.primary-button, .secondary-button {
   min-height: 44px;
   padding: 10px 16px;
   border: 1px solid transparent;
@@ -188,8 +188,8 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 .primary-button { color: white; background: linear-gradient(135deg, var(--primary), #2563eb); box-shadow: 0 8px 20px rgba(15, 118, 110, .2); }
-.secondary-button, .action-button { border-color: var(--line); color: var(--text); background: var(--surface-solid); }
-.primary-button:hover, .secondary-button:hover, .action-button:hover { transform: translateY(-2px); }
+.secondary-button { border-color: var(--line); color: var(--text); background: var(--surface-solid); }
+.primary-button:hover, .secondary-button:hover { transform: translateY(-2px); }
 button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 
 .quick-controls { justify-content: space-between; gap: 12px; margin-top: 12px; }
@@ -255,10 +255,6 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 .weather-emoji.small { font-size: 48px; }
 .temperature-block strong { margin-top: 8px; font-size: clamp(38px, 7vw, 66px); line-height: 1; }
 .temperature-block small { margin-top: 8px; color: rgba(255, 255, 255, .8); }
-.weather-actions { gap: 8px; flex-wrap: wrap; margin-top: 24px; }
-.weather-actions .action-button { min-height: 38px; padding: 8px 11px; color: white; border-color: rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .12); font-size: 12px; backdrop-filter: blur(10px); }
-.weather-actions .action-button.active { color: #422006; background: #fde68a; }
-
 .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
 .metric-card { position: relative; min-height: 106px; padding: 14px; flex-direction: column; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-solid); }
 .metric-icon { position: absolute; top: 13px; right: 13px; display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; color: var(--primary-strong); background: color-mix(in srgb, var(--primary) 13%, transparent); font-size: 12px; font-weight: 850; }
@@ -317,7 +313,6 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
   .current-main { grid-template-columns: 1fr; text-align: center; }
   .current-location h2 { margin-inline: auto; }
   .temperature-block { min-width: 0; }
-  .weather-actions { justify-content: center; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
   .daily-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 112px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
   .day-card { scroll-snap-align: start; }
@@ -337,7 +332,6 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
   .segmented button { flex: 1; }
   .current-card { padding: 20px 14px; }
   .current-location h2 { font-size: 29px; overflow-wrap: anywhere; }
-  .weather-actions .action-button { flex: 1 1 135px; }
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
   .metric-card { min-height: 100px; padding: 12px; }
   .metric-card strong { font-size: 17px; }

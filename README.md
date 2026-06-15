@@ -14,11 +14,9 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - 24 saatlik sıcaklık/yağış grafiği ve saatlik kartlar
 - 5 günlük tahmin
 - Celsius/Fahrenheit seçimi
-- Favoriler, son aramalar ve favori şehir karşılaştırması
+- Son aramalar ve kayıtlı favori şehirleri görüntüleme
 - Açık/koyu tema ve Türkçe/İngilizce arayüz
 - GPS konumu ve açık onaylı yaklaşık IP konumu
-- Yağmur bildirimi, paylaşılabilir PNG tahmin kartı
-- OpenStreetMap ve Windy radar bağlantıları
 - PWA kurulumu ve çevrimdışı son tahmin desteği
 - Mobil ve masaüstü erişilebilir arayüz
 

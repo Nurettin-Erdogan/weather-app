@@ -21,11 +21,9 @@ Son güncelleme: 15 Haziran 2026
 - Hissedilen sıcaklık, nem, yağış, bulutluluk, rüzgâr yönü ve hamlesi
 - Hava kalitesi, UV indeksi, gün doğumu ve gün batımı
 - 24 saatlik canvas grafik ve saatlik kartlar
-- Favoriler, son aramalar ve şehir karşılaştırması
+- Son aramalar ve kayıtlı favori şehirleri görüntüleme
 - Tema, dil ve sıcaklık birimi tercihleri
 - PWA kurulumu, service worker ve çevrimdışı son tahmin
-- Yağmur bildirimi
-- Harita, radar ve PNG paylaşım kartı
 - Mobil uyum ve azaltılmış hareket tercihi
 
 ## Doğrulama Sonucu
