@@ -65,7 +65,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
         }
         return response;
-      })),
+      }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : undefined)),
     );
   }
 });

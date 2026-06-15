@@ -1,80 +1,43 @@
-# Hızlı Başlangıç — Quick Start
+# Hızlı Başlangıç
 
-## Windows — En Kolay Yol 🚀
+## Windows
 
-Proje klasöründe **`launch-local.bat`** dosyasını çift tıkla.
+Proje klasöründe `launch-local.bat` dosyasına çift tıklayın.
 
-O kadar. Sunucu otomatik başlayacak ve tarayıcı açılacak.
+Alternatif:
 
-Sunucuyu kapatmak: Konsolda `Ctrl+C` tuşuna bas.
-
----
-
-## Windows — Elle Adımlar
-
-1. Komut istemini (Command Prompt) aç ve proje klasörüne git:
-   ```cmd
-   cd C:\Users\YourUsername\path\to\weather-app
-   ```
-
-2. Sunucuyu başlat:
-   ```cmd
-   python -m http.server 8000
-   ```
-
-3. Tarayıcıda aç:
-   ```
-   http://localhost:8000
-   ```
-
----
+```cmd
+run-local.bat
+```
 
 ## macOS / Linux
 
-Proje klasöründe terminali aç:
-
 ```bash
+chmod +x run-local.sh
 ./run-local.sh
-# veya
-python -m http.server 8000
 ```
 
-Tarayıcıda: `http://localhost:8000`
+Tarayıcı adresi: http://127.0.0.1:8000
 
----
-
-## Testler Çalıştırmak
-
-Python virtualenv'i aktive et (ilk defa):
+## Test
 
 ```bash
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
+python -m pip install playwright
+python -m playwright install chromium
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-Playwright testi:
+## Release
 
 ```bash
-python tests/smoke_playwright.py
+python scripts/build_release.py
 ```
 
-(Ön koşul: sunucu çalışıyor olmalı)
+ZIP dosyası `dist/weather-app-release.zip` altında oluşur.
 
----
+## Notlar
 
-## Konum İzni
-
-Tarayıcıda konum iznini yönetmek istersen:
-1. Adres çubuğundaki kilit simgesine tıkla
-2. Site ayarları → Konum → İzin ver / Reddet
-
----
-
-## İletişim / Hata
-
-README.md dosyasına bak veya [yardım](README.md) sayfasına göz at.
-
-Eğitim ve kişisel kullanım amaçlıdır.
+- Python 3 gerekir.
+- PWA ve ES modülleri nedeniyle uygulamayı `file://` ile açmayın.
+- Konum izni reddedilirse IP konumu yalnızca ek onayınızdan sonra kullanılır.
+- Offline kullanım için uygulamayı bir kez çevrimiçiyken açın.

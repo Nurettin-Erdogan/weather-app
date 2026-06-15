@@ -168,12 +168,14 @@ function renderSavedLocations() {
 function renderSuggestions(items, query) {
   elements.suggestions.replaceChildren();
   elements.cityInput.setAttribute('aria-expanded', String(items.length > 0));
+  if (!items.length) elements.cityInput.removeAttribute('aria-activedescendant');
   const normalizedQuery = normalizeForSearch(query);
   for (const [index, item] of items.entries()) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'suggestion-item';
-    button.role = 'option';
+    button.setAttribute('role', 'option');
+    button.setAttribute('aria-selected', 'false');
     button.id = `suggestion-${index}`;
     const name = document.createElement('strong');
     if (normalizeForSearch(item.name).includes(normalizedQuery)) {
@@ -188,6 +190,11 @@ function renderSuggestions(items, query) {
     province.textContent = item.admin1;
     button.append(name, province);
     button.addEventListener('click', () => selectLocation(item));
+    button.addEventListener('focus', () => {
+      elements.suggestions.querySelectorAll('[role="option"]').forEach(option => option.setAttribute('aria-selected', 'false'));
+      button.setAttribute('aria-selected', 'true');
+      elements.cityInput.setAttribute('aria-activedescendant', button.id);
+    });
     button.addEventListener('keydown', event => navigateSuggestions(event, button));
     elements.suggestions.append(button);
   }
@@ -209,6 +216,7 @@ function navigateSuggestions(event, button) {
 function selectLocation(location) {
   elements.cityInput.value = location.label;
   renderSuggestions([], '');
+  elements.cityInput.removeAttribute('aria-activedescendant');
   openWeather(location);
 }
 
@@ -253,6 +261,7 @@ async function openWeather(location, options = {}) {
     state.currentBundle = bundle;
     state.currentSavedAt = new Date().toISOString();
     state.currentIsCached = false;
+    renderSuggestions([], '');
     saveWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude), { location: safeLocation, bundle });
     if (options.addToRecent !== false) addRecent(safeLocation);
     renderWeather();
@@ -685,6 +694,9 @@ async function initialize() {
       renderWeather();
       showNotice(t('cached', { time: formatLocalTime(latest.savedAt, state.settings.language) }), 'warning');
     }
+  }
+  if (new URLSearchParams(location.search).get('action') === 'location') {
+    handleUseLocation();
   }
 }
 

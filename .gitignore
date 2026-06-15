@@ -11,12 +11,19 @@ node_modules/
 
 # Python virtual environment
 .venv/
+__pycache__/
+*.py[cod]
 
 # Env
 .env
 
 # Caches & backups
 data/geocode-cache.json
-data/*.bak
+data/*.bak*
 reports/
 demo-commit.txt
+
+# Generated release artifacts
+/release/
+/weather-app-release.zip
+/dist/

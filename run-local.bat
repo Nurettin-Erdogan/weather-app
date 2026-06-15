@@ -1,3 +1,8 @@
 @echo off
-REM Start a simple local HTTP server on port 8000 (Windows)
-python -m http.server 8000
+cd /d "%~dp0"
+where py >nul 2>nul
+if %errorlevel%==0 (
+  py -3 -m http.server 8000 --bind 127.0.0.1
+) else (
+  python -m http.server 8000 --bind 127.0.0.1
+)
