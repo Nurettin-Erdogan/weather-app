@@ -14,19 +14,23 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - 24 saatlik sıcaklık/yağış grafiği ve saatlik kartlar
 - 5 günlük tahmin
 - Celsius/Fahrenheit seçimi
-- Son aramalar ve kayıtlı favori şehirleri görüntüleme
+- Son aramaları cihazda saklama ve hızlı yeniden açma
 - Açık/koyu tema ve Türkçe/İngilizce arayüz
 - GPS konumu ve açık onaylı yaklaşık IP konumu
+- GPS konumunu idari ilçe adına eşleyen OpenStreetMap ters konum çözümleme
 - PWA kurulumu ve çevrimdışı son tahmin desteği
+- Açık sekmede, bağlantı geri geldiğinde ve uygulamaya dönüldüğünde sessiz otomatik yenileme
 - Mobil ve masaüstü erişilebilir arayüz
 
 ## Mahremiyet
 
-- GPS konumu yalnızca kullanıcı butona bastığında tarayıcıdan istenir.
+- GPS konumu yalnızca kullanıcı butona bastığında tarayıcıdan istenir; koordinat hava verisi için Open-Meteo'ya, ilçe adını belirlemek için OpenStreetMap tabanlı Photon'a gönderilir.
+- Yerel listede bulunamayan arama metni eşleştirme için Open-Meteo geocoding servisine gönderilir.
 - Konum izni reddedildiğinde IP servisi otomatik çağrılmaz.
 - Yaklaşık IP konumu için kullanıcıdan ayrıca açık onay alınır ve yalnızca `ipwho.is` kullanılır.
-- Favoriler, tercihler, son aramalar ve son tahmin cihazdaki `localStorage` içinde tutulur.
+- Tercihler, son aramalar ve son tahmin cihazdaki `localStorage` içinde tutulur.
 - Projede API anahtarı veya kullanıcı hesabı yoktur.
+- Uygulama üçüncü taraf isteklere sayfa adresini referrer olarak göndermez.
 
 ## Yerel Çalıştırma
 
@@ -52,9 +56,12 @@ Test paketi şunları zorunlu kılar:
 - İller arasında yanlış ortak koordinat bulunmaması
 - Şüpheli ilçe/il küme sapmalarının bulunmaması
 - Doğru Karesi koordinatının API'ye gönderilmesi
-- Arama, birim, favori, dil, tema ve mobil görünüm
+- Arama, birim, dil, tema, erişilebilir günlük seçim ve mobil görünüm
 - API hata/yeniden deneme akışı
 - IP servisine kullanıcı onayı olmadan istek gönderilmemesi
+- Türkiye dışındaki GPS konumlarının reddedilmesi
+- Bozuk yerel depolama verisinde güvenli varsayılanlara dönülmesi
+- PWA önbellek sürümü ile HTML varlık sürümlerinin eşleşmesi
 
 ## Veri Bakımı
 
@@ -109,6 +116,5 @@ weather-app/
 
 - Tahmin ve geocoding: Open-Meteo
 - Hava kalitesi: Open-Meteo Air Quality API
-- Harita: OpenStreetMap
-- Radar bağlantısı: Windy
+- GPS ters konum çözümleme: OpenStreetMap tabanlı Photon
 - Yerel koordinat temel kaynağı: BuNick Turkey Cities & Districts

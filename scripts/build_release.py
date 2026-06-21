@@ -43,9 +43,15 @@ FILES = [
 
 def validate_data():
     payload = json.loads((ROOT / "data/il-ilce-with-loc.json").read_text(encoding="utf-8"))
-    districts = [district for province in payload["data"] for district in province["ilceler"]]
+    provinces = payload.get("data", [])
+    if len(provinces) != 81:
+        raise RuntimeError(f"Expected 81 provinces, found {len(provinces)}")
+    districts = [district for province in provinces for district in province.get("ilceler", [])]
     if len(districts) != 973:
         raise RuntimeError(f"Expected 973 districts, found {len(districts)}")
+    unnamed = [district for district in districts if not str(district.get("ilce_adi", "")).strip()]
+    if unnamed:
+        raise RuntimeError(f"Found {len(unnamed)} districts without a name")
     invalid = [
         district
         for district in districts
@@ -56,6 +62,12 @@ def validate_data():
     ]
     if invalid:
         raise RuntimeError(f"Found {len(invalid)} coordinates outside Türkiye")
+    coordinates = [
+        (float(district["latitude"]), float(district["longitude"]))
+        for district in districts
+    ]
+    if len(set(coordinates)) != len(coordinates):
+        raise RuntimeError("Found duplicate district coordinates")
 
 
 def main():

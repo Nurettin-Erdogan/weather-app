@@ -71,6 +71,33 @@ function toLocation(item, language = 'tr') {
   };
 }
 
+function normalizeAdministrativeName(value) {
+  return normalizeForSearch(value)
+    .replace(/\b(mahallesi|mah|ilcesi|ilce|belediyesi|ili|province|district|municipality)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function findDistrictByAddress(address, language = 'tr') {
+  if (!address || typeof address !== 'object') return null;
+  const districtNames = [
+    address.town,
+    address.city_district,
+    address.municipality,
+    address.county,
+    address.city,
+  ].map(normalizeAdministrativeName).filter(Boolean);
+  const provinceNames = [
+    address.province,
+    address.state,
+    address.city,
+  ].map(normalizeAdministrativeName).filter(Boolean);
+  const matches = districts.filter(item => districtNames.includes(item.districtNorm));
+  const provinceMatch = matches.find(item => provinceNames.includes(item.provinceNorm));
+  if (provinceMatch) return toLocation(provinceMatch, language);
+  return matches.length === 1 ? toLocation(matches[0], language) : null;
+}
+
 export function searchDistricts(value, language = 'tr', limit = 7) {
   const query = normalizeForSearch(value);
   if (!query) return [];

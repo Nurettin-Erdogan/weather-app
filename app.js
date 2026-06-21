@@ -1,36 +1,43 @@
-import { fetchApproximateIpLocation, fetchWeatherBundle, searchRemoteLocation } from './js/api.js';
+import {
+  fetchApproximateIpLocation, fetchWeatherBundle, reverseGeocodeLocation, searchRemoteLocation,
+} from './js/api.js';
 import { drawHourlyChart } from './js/chart.js';
 import { translate } from './js/i18n.js';
-import { findDistrict, loadDistrictIndex, nearestDistrict, searchDistricts } from './js/search.js';
 import {
-  addRecent, clearRecent, getFavorites, getLatestWeatherCache, getRecent,
-  getSettings, getWeatherCache, saveSettings, saveWeatherCache, toggleFavorite,
+  findDistrict, findDistrictByAddress, loadDistrictIndex, nearestDistrict, searchDistricts,
+} from './js/search.js';
+import {
+  addRecent, clearRecent, getLatestWeatherCache, getRecent,
+  getSettings, getWeatherCache, saveSettings, saveWeatherCache,
 } from './js/storage.js';
 import {
   airQualityLabel, cacheKey, debounce, escapeHtml, formatDay, formatHour,
-  formatLocalTime, formatTemperature, normalizeForSearch, windDirection,
+  formatLocalTime, formatTemperature, isTurkeyCoordinate, normalizeForSearch, windDirection,
 } from './js/utils.js';
 import { weatherIcon, weatherLabel, weatherTheme } from './js/weather-codes.js';
 
+const AUTO_REFRESH_MS = 15 * 60 * 1000;
+
 const elements = Object.fromEntries([
   'searchForm', 'cityInput', 'clearBtn', 'searchBtn', 'suggestions', 'locationBtn',
-  'unitCBtn', 'unitFBtn', 'notice', 'result', 'favoritesSection', 'favoritesList',
-  'compareBtn', 'recentSection', 'recentList', 'clearRecentBtn', 'themeBtn',
+  'unitCBtn', 'unitFBtn', 'notice', 'result', 'recentSection', 'recentList',
+  'clearRecentBtn', 'themeBtn',
   'languageBtn', 'installBtn', 'offlineBanner', 'helpBtn', 'ipDialog', 'allowIpBtn',
-  'helpDialog', 'compareDialog', 'compareContent', 'toast',
+  'helpDialog', 'toast',
 ].map(id => [id, document.getElementById(id)]));
 
 const state = {
   settings: getSettings(),
   currentLocation: null,
   currentBundle: null,
-  currentSavedAt: null,
+  currentFetchedAt: 0,
   currentIsCached: false,
   requestController: null,
   retryAction: null,
   installPrompt: null,
   serviceWorkerRegistration: null,
   toastTimer: null,
+  locationLookupInProgress: false,
 };
 
 const t = (key, variables) => translate(state.settings.language, key, variables);
@@ -49,6 +56,7 @@ function updateTranslations() {
     element.setAttribute('aria-label', label);
   });
   elements.cityInput.setAttribute('aria-label', t('searchLabel'));
+  elements.languageBtn.setAttribute('aria-label', t('language'));
   elements.unitCBtn.parentElement.setAttribute('aria-label', state.settings.language === 'tr' ? 'Sıcaklık birimi' : 'Temperature unit');
 }
 
@@ -68,7 +76,7 @@ function applySettings() {
   elements.unitFBtn.classList.toggle('active', state.settings.unit === 'F');
   updateTranslations();
   if (state.currentBundle) renderWeather();
-  renderSavedLocations();
+  renderRecentLocations();
 }
 
 function setLoading(loading) {
@@ -81,6 +89,12 @@ function setLoading(loading) {
         <strong>${escapeHtml(t('loading'))}</strong>
       </div>`;
   }
+}
+
+function finishRequest(controller) {
+  if (state.requestController !== controller) return;
+  state.requestController = null;
+  setLoading(false);
 }
 
 function showToast(message) {
@@ -130,32 +144,12 @@ function normalizedLocation(location) {
   return { ...location, id: locationIdentity(location) };
 }
 
-function renderSavedLocations() {
-  const favorites = getFavorites();
+function renderRecentLocations() {
   const recent = getRecent();
-  elements.favoritesSection.hidden = favorites.length === 0;
   elements.recentSection.hidden = recent.length === 0;
-  elements.favoritesList.innerHTML = favorites.map(location => `
-    <span class="location-chip">
-      <button type="button" data-open-id="${escapeHtml(location.id)}">★ ${escapeHtml(location.label)}</button>
-      <button class="chip-remove" type="button" data-remove-id="${escapeHtml(location.id)}" aria-label="${escapeHtml(t('removeFavorite'))}">×</button>
-    </span>`).join('');
   elements.recentList.innerHTML = recent.map(location => `
     <button class="location-chip recent-chip" type="button" data-recent-id="${escapeHtml(location.id)}">${escapeHtml(location.label)}</button>`).join('');
 
-  elements.favoritesList.querySelectorAll('[data-open-id]').forEach(button => {
-    button.addEventListener('click', () => {
-      const location = favorites.find(item => item.id === button.dataset.openId);
-      if (location) openWeather(location);
-    });
-  });
-  elements.favoritesList.querySelectorAll('[data-remove-id]').forEach(button => {
-    button.addEventListener('click', () => {
-      const location = favorites.find(item => item.id === button.dataset.removeId);
-      if (location) toggleFavorite(location);
-      renderSavedLocations();
-    });
-  });
   elements.recentList.querySelectorAll('[data-recent-id]').forEach(button => {
     button.addEventListener('click', () => {
       const location = recent.find(item => item.id === button.dataset.recentId);
@@ -236,7 +230,7 @@ async function handleSearch() {
       renderError(t('dataError'), handleSearch);
       return;
     } finally {
-      setLoading(false);
+      finishRequest(controller);
     }
   }
   if (!location) {
@@ -252,34 +246,36 @@ async function openWeather(location, options = {}) {
   state.requestController?.abort();
   const controller = new AbortController();
   state.requestController = controller;
-  setLoading(true);
-  showNotice();
+  if (!options.silent) {
+    setLoading(true);
+    showNotice();
+  }
   try {
     const bundle = await fetchWeatherBundle(safeLocation.latitude, safeLocation.longitude, controller.signal);
     state.currentLocation = safeLocation;
     state.currentBundle = bundle;
-    state.currentSavedAt = new Date().toISOString();
+    state.currentFetchedAt = Date.now();
     state.currentIsCached = false;
     renderSuggestions([], '');
     saveWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude), { location: safeLocation, bundle });
     if (options.addToRecent !== false) addRecent(safeLocation);
     renderWeather();
-    renderSavedLocations();
+    renderRecentLocations();
   } catch (error) {
     if (error.name === 'AbortError') return;
     const cached = getWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude));
     if (cached?.payload) {
       state.currentLocation = cached.payload.location;
       state.currentBundle = cached.payload.bundle;
-      state.currentSavedAt = cached.savedAt;
+      state.currentFetchedAt = Date.parse(cached.savedAt) || 0;
       state.currentIsCached = true;
       renderWeather();
       showNotice(t('cached', { time: formatLocalTime(cached.savedAt, state.settings.language) }), 'warning');
-    } else {
+    } else if (!options.silent) {
       renderError(t('dataError'), () => openWeather(safeLocation, options));
     }
   } finally {
-    setLoading(false);
+    finishRequest(controller);
   }
 }
 
@@ -350,15 +346,15 @@ function renderWeather() {
 
     <section class="forecast-section">
       <div class="section-heading"><div><span class="eyebrow">24h</span><h2>${escapeHtml(t('hourly'))}</h2></div></div>
-      <div class="chart-card"><canvas id="hourlyChart" aria-label="${escapeHtml(t('hourly'))}"></canvas></div>
+      <div class="chart-card"><canvas id="hourlyChart" role="img" aria-label="${escapeHtml(t('hourly'))}"></canvas></div>
       <div id="hourlyRows" class="hourly-rows"></div>
     </section>
 
     <section class="forecast-section">
-      <div class="section-heading"><div><span class="eyebrow">5 days</span><h2>${escapeHtml(t('daily'))}</h2></div></div>
+      <div class="section-heading"><div><span class="eyebrow">${escapeHtml(t('fiveDaysShort'))}</span><h2>${escapeHtml(t('daily'))}</h2></div></div>
       <div class="daily-grid">
         ${(daily.time || []).map((date, index) => `
-          <button class="day-card ${index === 0 ? 'active' : ''}" type="button" data-date="${escapeHtml(date)}">
+          <button class="day-card ${index === 0 ? 'active' : ''}" type="button" data-date="${escapeHtml(date)}" aria-pressed="${index === 0}">
             <strong>${escapeHtml(formatDay(date, language))}</strong>
             <span class="day-icon" aria-hidden="true">${weatherIcon(daily.weather_code?.[index], 1)}</span>
             <span><b>${escapeHtml(formatTemperature(daily.temperature_2m_max?.[index], unit))}</b> / ${escapeHtml(formatTemperature(daily.temperature_2m_min?.[index], unit))}</span>
@@ -372,59 +368,40 @@ function renderWeather() {
   renderHourlyRows(hourly.time?.[0]?.slice(0, 10) || daily.time?.[0]);
   document.querySelectorAll('.day-card').forEach(card => {
     card.addEventListener('click', () => {
-      document.querySelectorAll('.day-card').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.day-card').forEach(item => {
+        item.classList.remove('active');
+        item.setAttribute('aria-pressed', 'false');
+      });
       card.classList.add('active');
+      card.setAttribute('aria-pressed', 'true');
       renderHourlyRows(card.dataset.date);
     });
   });
 }
 
 function renderHourlyRows(date) {
-  const hourly = state.currentBundle?.weather?.hourly || {};
-  const indexes = (hourly.time || []).map((value, index) => value.startsWith(date) ? index : -1).filter(index => index >= 0);
+  const weather = state.currentBundle?.weather || {};
+  const hourly = weather.hourly || {};
+  const currentTime = weather.current?.time || '';
+  const currentDate = currentTime.slice(0, 10);
+  const indexes = date === currentDate
+    ? (hourly.time || [])
+      .map((value, index) => value >= currentTime ? index : -1)
+      .filter(index => index >= 0)
+      .slice(0, 24)
+    : (hourly.time || [])
+      .map((value, index) => value.startsWith(date) ? index : -1)
+      .filter(index => index >= 0);
   const container = document.getElementById('hourlyRows');
   if (!container) return;
   container.innerHTML = indexes.map(index => `
     <article class="hour-card">
       <strong>${escapeHtml(formatHour(hourly.time[index]))}</strong>
-      <span aria-hidden="true">${weatherIcon(hourly.weather_code?.[index], 1)}</span>
+      <span aria-hidden="true">${weatherIcon(hourly.weather_code?.[index], hourly.is_day?.[index] ?? 1)}</span>
       <b>${escapeHtml(formatTemperature(hourly.temperature_2m?.[index], state.settings.unit))}</b>
       <small>💧 %${hourly.precipitation_probability?.[index] ?? 0}</small>
       <small>${hourly.relative_humidity_2m?.[index] ?? '—'}%</small>
     </article>`).join('');
-}
-
-async function compareFavorites() {
-  const favorites = getFavorites();
-  elements.compareDialog.showModal();
-  if (favorites.length < 2) {
-    elements.compareContent.innerHTML = `<p>${escapeHtml(t('compareEmpty'))}</p>`;
-    return;
-  }
-  elements.compareContent.innerHTML = `<div class="loading-state"><span class="loader"></span><strong>${escapeHtml(t('loading'))}</strong></div>`;
-  const controller = new AbortController();
-  try {
-    const results = await Promise.all(favorites.slice(0, 4).map(async location => ({
-      location,
-      bundle: await fetchWeatherBundle(location.latitude, location.longitude, controller.signal),
-    })));
-    elements.compareContent.innerHTML = `
-      <div class="comparison-grid">
-        ${results.map(({ location, bundle }) => {
-          const current = bundle.weather.current;
-          return `<article class="comparison-card">
-            <span class="weather-emoji small">${weatherIcon(current.weather_code, current.is_day)}</span>
-            <h3>${escapeHtml(location.label)}</h3>
-            <strong>${escapeHtml(formatTemperature(current.temperature_2m, state.settings.unit))}</strong>
-            <p>${escapeHtml(weatherLabel(current.weather_code, state.settings.language))}</p>
-            <small>${escapeHtml(t('humidity'))}: ${current.relative_humidity_2m}%</small>
-            <small>${escapeHtml(t('wind'))}: ${current.wind_speed_10m} km/h</small>
-          </article>`;
-        }).join('')}
-      </div>`;
-  } catch {
-    elements.compareContent.innerHTML = `<p>${escapeHtml(t('dataError'))}</p>`;
-  }
 }
 
 async function handleUseLocation() {
@@ -432,19 +409,47 @@ async function handleUseLocation() {
     showNotice(t('locationUnavailable'), 'error');
     return;
   }
+  if (state.locationLookupInProgress) return;
+  state.locationLookupInProgress = true;
+  elements.locationBtn.disabled = true;
   showNotice(t('loading'));
   navigator.geolocation.getCurrentPosition(async position => {
-    const location = nearestDistrict(position.coords.latitude, position.coords.longitude, state.settings.language) || {
-      name: state.settings.language === 'tr' ? 'Konumum' : 'My location',
-      admin1: '',
-      label: state.settings.language === 'tr' ? 'Konumum' : 'My location',
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      country: 'Türkiye',
-    };
-    elements.cityInput.value = location.label;
-    await openWeather(location);
+    try {
+      const { latitude, longitude } = position.coords;
+      if (!isTurkeyCoordinate(latitude, longitude)) {
+        showNotice(t('outsideTurkey'), 'warning');
+        return;
+      }
+      const nearest = nearestDistrict(latitude, longitude, state.settings.language);
+      if (nearest?.distanceKm > 150) {
+        showNotice(t('outsideTurkey'), 'warning');
+        return;
+      }
+      let resolved = null;
+      try {
+        const address = await reverseGeocodeLocation(latitude, longitude, state.settings.language);
+        resolved = findDistrictByAddress(address, state.settings.language);
+      } catch {
+        // The local nearest-district fallback keeps GPS usable offline.
+      }
+      const location = resolved || nearest || {
+        name: state.settings.language === 'tr' ? 'Konumum' : 'My location',
+        admin1: '',
+        label: state.settings.language === 'tr' ? 'Konumum' : 'My location',
+        country: 'Türkiye',
+      };
+      location.latitude = latitude;
+      location.longitude = longitude;
+      location.source = resolved ? 'gps-reverse' : 'gps-nearest';
+      elements.cityInput.value = location.label;
+      await openWeather(location);
+    } finally {
+      state.locationLookupInProgress = false;
+      if (!state.requestController) elements.locationBtn.disabled = false;
+    }
   }, error => {
+    state.locationLookupInProgress = false;
+    elements.locationBtn.disabled = false;
     if (error.code === error.PERMISSION_DENIED) {
       showNotice(t('locationDenied'), 'warning', [{ label: t('allowIp'), callback: () => elements.ipDialog.showModal() }]);
     } else {
@@ -485,6 +490,17 @@ function updateConnectionStatus() {
   } else {
     elements.offlineBanner.hidden = true;
   }
+}
+
+function refreshCurrentWeatherIfStale() {
+  if (
+    !navigator.onLine
+    || document.hidden
+    || state.requestController
+    || !state.currentLocation
+  ) return;
+  const isStale = state.currentIsCached || Date.now() - state.currentFetchedAt >= AUTO_REFRESH_MS;
+  if (isStale) openWeather(state.currentLocation, { addToRecent: false, silent: true });
 }
 
 async function installApp() {
@@ -529,13 +545,17 @@ function bindEvents() {
     saveSettings(state.settings);
     applySettings();
   });
-  elements.clearRecentBtn.addEventListener('click', () => { clearRecent(); renderSavedLocations(); });
-  elements.compareBtn.addEventListener('click', compareFavorites);
+  elements.clearRecentBtn.addEventListener('click', () => { clearRecent(); renderRecentLocations(); });
   elements.helpBtn.addEventListener('click', () => elements.helpDialog.showModal());
   elements.allowIpBtn.addEventListener('click', useApproximateIpLocation);
   elements.installBtn.addEventListener('click', installApp);
-  window.addEventListener('online', () => { updateConnectionStatus(); showToast(t('backOnline')); });
+  window.addEventListener('online', () => {
+    updateConnectionStatus();
+    showToast(t('backOnline'));
+    refreshCurrentWeatherIfStale();
+  });
   window.addEventListener('offline', updateConnectionStatus);
+  document.addEventListener('visibilitychange', refreshCurrentWeatherIfStale);
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     state.installPrompt = event;
@@ -556,7 +576,7 @@ async function registerServiceWorker() {
       location.reload();
     });
     state.serviceWorkerRegistration = await navigator.serviceWorker.register(
-      './service-worker.js?v=20260615-2',
+      './service-worker.js?v=20260621-2',
       { updateViaCache: 'none' },
     );
     await state.serviceWorkerRegistration.update();
@@ -569,7 +589,7 @@ async function initialize() {
   applySettings();
   bindEvents();
   updateConnectionStatus();
-  renderSavedLocations();
+  renderRecentLocations();
   registerServiceWorker();
   try {
     await loadDistrictIndex();
@@ -581,7 +601,7 @@ async function initialize() {
     if (latest?.payload) {
       state.currentLocation = latest.payload.location;
       state.currentBundle = latest.payload.bundle;
-      state.currentSavedAt = latest.savedAt;
+      state.currentFetchedAt = Date.parse(latest.savedAt) || 0;
       state.currentIsCached = true;
       elements.cityInput.value = state.currentLocation.label;
       renderWeather();
@@ -591,6 +611,7 @@ async function initialize() {
   if (new URLSearchParams(location.search).get('action') === 'location') {
     handleUseLocation();
   }
+  setInterval(refreshCurrentWeatherIfStale, AUTO_REFRESH_MS);
 }
 
 initialize();

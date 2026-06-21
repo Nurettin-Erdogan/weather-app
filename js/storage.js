@@ -1,6 +1,5 @@
 const KEYS = {
   settings: 'weather_settings_v2',
-  favorites: 'weather_favorites_v2',
   recent: 'weather_recent_v2',
   cache: 'weather_cache_v2',
   latest: 'weather_latest_v2',
@@ -23,28 +22,30 @@ function write(key, value) {
 }
 
 export function getSettings() {
-  return { unit: 'C', language: 'tr', theme: 'system', rainAlerts: false, ...read(KEYS.settings, {}) };
+  const stored = read(KEYS.settings, {});
+  return {
+    unit: ['C', 'F'].includes(stored?.unit) ? stored.unit : 'C',
+    language: ['tr', 'en'].includes(stored?.language) ? stored.language : 'tr',
+    theme: ['system', 'light', 'dark'].includes(stored?.theme) ? stored.theme : 'system',
+  };
 }
 
 export function saveSettings(settings) {
   write(KEYS.settings, settings);
 }
 
-export function getFavorites() {
-  return read(KEYS.favorites, []);
-}
-
-export function toggleFavorite(location) {
-  const favorites = getFavorites();
-  const index = favorites.findIndex(item => item.id === location.id);
-  if (index >= 0) favorites.splice(index, 1);
-  else favorites.unshift(location);
-  write(KEYS.favorites, favorites.slice(0, 8));
-  return favorites.slice(0, 8);
+function validLocation(location) {
+  return location
+    && typeof location === 'object'
+    && typeof location.id === 'string'
+    && typeof location.label === 'string'
+    && Number.isFinite(Number(location.latitude))
+    && Number.isFinite(Number(location.longitude));
 }
 
 export function getRecent() {
-  return read(KEYS.recent, []);
+  const recent = read(KEYS.recent, []);
+  return Array.isArray(recent) ? recent.filter(validLocation).slice(0, 5) : [];
 }
 
 export function addRecent(location) {
@@ -59,17 +60,27 @@ export function clearRecent() {
 }
 
 export function saveWeatherCache(key, payload) {
-  const cache = read(KEYS.cache, {});
-  cache[key] = { payload, savedAt: new Date().toISOString() };
-  const trimmed = Object.fromEntries(Object.entries(cache).slice(-12));
+  const stored = read(KEYS.cache, {});
+  const cache = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  const savedAt = new Date().toISOString();
+  cache[key] = { payload, savedAt };
+  const trimmed = Object.fromEntries(
+    Object.entries(cache)
+      .filter(([, entry]) => entry?.payload && typeof entry.savedAt === 'string')
+      .sort(([, a], [, b]) => Date.parse(a.savedAt) - Date.parse(b.savedAt))
+      .slice(-12),
+  );
   write(KEYS.cache, trimmed);
-  write(KEYS.latest, { key, payload, savedAt: new Date().toISOString() });
+  write(KEYS.latest, { key, payload, savedAt });
 }
 
 export function getWeatherCache(key) {
-  return read(KEYS.cache, {})[key] || null;
+  const cache = read(KEYS.cache, {});
+  const entry = cache && typeof cache === 'object' && !Array.isArray(cache) ? cache[key] : null;
+  return entry?.payload && typeof entry.savedAt === 'string' ? entry : null;
 }
 
 export function getLatestWeatherCache() {
-  return read(KEYS.latest, null);
+  const latest = read(KEYS.latest, null);
+  return latest?.payload && typeof latest.savedAt === 'string' ? latest : null;
 }

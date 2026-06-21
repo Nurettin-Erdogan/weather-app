@@ -3,6 +3,8 @@ import { isTurkeyCoordinate, normalizeForSearch, titleCase } from './utils.js';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+const REVERSE_URL = 'https://photon.komoot.io/reverse';
+const reverseLocationCache = new Map();
 
 function timeoutSignal(parentSignal, timeout = 14000) {
   const controller = new AbortController();
@@ -14,7 +16,11 @@ function timeoutSignal(parentSignal, timeout = 14000) {
 async function requestJson(url, options = {}) {
   const timeout = timeoutSignal(options.signal, options.timeout);
   try {
-    const response = await fetch(url, { signal: timeout.signal, headers: { Accept: 'application/json' } });
+    const response = await fetch(url, {
+      signal: timeout.signal,
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return await response.json();
   } finally {
@@ -33,7 +39,7 @@ function forecastUrl(latitude, longitude) {
     ].join(','),
     hourly: [
       'temperature_2m', 'apparent_temperature', 'precipitation_probability',
-      'relative_humidity_2m', 'weather_code', 'wind_speed_10m',
+      'relative_humidity_2m', 'weather_code', 'is_day', 'wind_speed_10m',
     ].join(','),
     daily: [
       'weather_code', 'temperature_2m_max', 'temperature_2m_min',
@@ -108,4 +114,27 @@ export async function fetchApproximateIpLocation(signal) {
     city: data.city || '',
     country: data.country || 'Türkiye',
   };
+}
+
+export async function reverseGeocodeLocation(latitude, longitude, language = 'tr', signal) {
+  if (!isTurkeyCoordinate(latitude, longitude)) return null;
+  const key = `${Number(latitude).toFixed(4)},${Number(longitude).toFixed(4)},${language}`;
+  if (reverseLocationCache.has(key)) return reverseLocationCache.get(key);
+
+  const params = new URLSearchParams({
+    lat: Number(latitude).toFixed(6),
+    lon: Number(longitude).toFixed(6),
+  });
+  const request = requestJson(`${REVERSE_URL}?${params}`, {
+    signal,
+    timeout: 8000,
+  }).then(data => {
+    const address = data?.features?.[0]?.properties;
+    return address?.countrycode === 'TR' ? address : null;
+  }).catch(error => {
+    reverseLocationCache.delete(key);
+    throw error;
+  });
+  reverseLocationCache.set(key, request);
+  return request;
 }

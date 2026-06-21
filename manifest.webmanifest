@@ -2,6 +2,7 @@
   "name": "Hava Durumu - Türkiye",
   "short_name": "Hava",
   "description": "Türkiye il ve ilçeleri için ayrıntılı hava tahminleri.",
+  "id": "./",
   "lang": "tr",
   "start_url": "./",
   "scope": "./",

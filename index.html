@@ -7,15 +7,19 @@
   <meta name="description" content="Türkiye il ve ilçeleri için anlık hava durumu, saatlik grafikler, 5 günlük tahmin, hava kalitesi ve yağmur uyarıları.">
   <meta name="theme-color" content="#0f766e">
   <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
   <meta property="og:title" content="Hava Durumu">
   <meta property="og:description" content="Türkiye için hızlı ve ayrıntılı hava tahminleri.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="./ss/2.png">
+  <meta property="og:image" content="https://nurettin-erdogan.github.io/weather-app/ss/2.png">
+  <meta name="application-name" content="Hava Durumu">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="canonical" href="https://nurettin-erdogan.github.io/weather-app/">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=20260615-2">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://ipwho.is; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="stylesheet" href="./style.css?v=20260621-2">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://ipwho.is; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 </head>
 <body>
   <div class="weather-backdrop" aria-hidden="true">
@@ -28,7 +32,7 @@
 
   <main class="app-shell">
     <header class="app-header">
-      <a class="brand" href="./" aria-label="Hava Durumu ana sayfa">
+      <a class="brand" href="./" data-i18n-title="home" aria-label="Hava Durumu ana sayfa">
         <span class="brand-mark" aria-hidden="true">☀</span>
         <span>
           <strong data-i18n="appTitle">Hava Durumu</strong>
@@ -64,14 +68,6 @@
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
     </section>
 
-    <section id="favoritesSection" class="saved-section" hidden>
-      <div class="section-heading compact-heading">
-        <h2 data-i18n="favorites">Favoriler</h2>
-        <button id="compareBtn" class="link-action" type="button" data-i18n="compare">Favorileri karşılaştır</button>
-      </div>
-      <div id="favoritesList" class="chip-list"></div>
-    </section>
-
     <section id="recentSection" class="saved-section" hidden>
       <div class="section-heading compact-heading">
         <h2 data-i18n="recent">Son aramalar</h2>
@@ -89,15 +85,19 @@
     </section>
 
     <footer class="app-footer">
-      <span data-i18n="source">Veri: Open-Meteo · İl/ilçe verisi: yerel doğrulanmış JSON</span>
+      <span>
+        <span data-i18n="source">Hava: Open-Meteo · Konum:</span>
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" data-i18n="osmAttribution">© OpenStreetMap katkıcıları</a>
+        <span data-i18n="districtSource">· İl/ilçe: yerel doğrulanmış JSON</span>
+      </span>
       <button id="helpBtn" class="link-action" type="button" data-i18n="locationHelp">Konum iznini açma yardımı</button>
     </footer>
   </main>
 
-  <dialog id="ipDialog" class="modal">
+  <dialog id="ipDialog" class="modal" aria-labelledby="ipConsentHeading">
     <form method="dialog">
-      <button class="modal-close" value="cancel" type="submit" aria-label="Kapat">×</button>
-      <h2 data-i18n="ipConsentTitle">Yaklaşık IP konumu</h2>
+      <button class="modal-close" value="cancel" type="submit" data-i18n-title="close" aria-label="Kapat">×</button>
+      <h2 id="ipConsentHeading" data-i18n="ipConsentTitle">Yaklaşık IP konumu</h2>
       <p data-i18n="ipConsentBody">Devam edersen IP adresin yaklaşık şehir tespiti için ipwho.is servisine gönderilir. Hassas GPS konumu paylaşılmaz.</p>
       <div class="modal-actions">
         <button id="allowIpBtn" class="primary-button" value="default" type="button" data-i18n="allowIp">IP ile yaklaşık konumu bul</button>
@@ -106,10 +106,10 @@
     </form>
   </dialog>
 
-  <dialog id="helpDialog" class="modal">
+  <dialog id="helpDialog" class="modal" aria-labelledby="permissionHelpHeading">
     <form method="dialog">
-      <button class="modal-close" value="cancel" type="submit" aria-label="Kapat">×</button>
-      <h2 data-i18n="permissionHelpTitle">Konum izni nasıl açılır?</h2>
+      <button class="modal-close" value="cancel" type="submit" data-i18n-title="close" aria-label="Kapat">×</button>
+      <h2 id="permissionHelpHeading" data-i18n="permissionHelpTitle">Konum izni nasıl açılır?</h2>
       <p data-i18n="permissionHelpBody">Tarayıcının adres çubuğundaki site ayarlarını aç, Konum iznini “İzin ver” olarak değiştir ve sayfayı yenile.</p>
       <div class="modal-actions">
         <button class="primary-button" value="cancel" type="submit" data-i18n="close">Kapat</button>
@@ -117,16 +117,8 @@
     </form>
   </dialog>
 
-  <dialog id="compareDialog" class="modal wide-modal">
-    <form method="dialog">
-      <button class="modal-close" value="cancel" type="submit" aria-label="Kapat">×</button>
-      <h2 data-i18n="compareTitle">Favori şehir karşılaştırması</h2>
-      <div id="compareContent" class="compare-content"></div>
-    </form>
-  </dialog>
-
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script type="module" src="./app.js?v=20260615-2"></script>
+  <script type="module" src="./app.js?v=20260621-2"></script>
 </body>
 </html>

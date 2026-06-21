@@ -230,9 +230,7 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 .compact-heading { justify-content: space-between; margin-bottom: 8px; }
 .compact-heading h2 { margin: 0; font-size: 15px; }
 .chip-list { display: flex; gap: 8px; flex-wrap: wrap; }
-.location-chip { overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-solid); }
-.location-chip button, button.location-chip { min-height: 38px; padding: 7px 12px; border: 0; cursor: pointer; background: transparent; font-size: 13px; font-weight: 700; }
-.location-chip .chip-remove { width: 34px; padding: 0; border-left: 1px solid var(--line); color: var(--muted); }
+.location-chip { min-height: 38px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; background: var(--surface-solid); font-size: 13px; font-weight: 700; }
 .recent-chip { display: inline-flex; align-items: center; }
 
 .weather-result { min-height: 280px; margin-top: 22px; }
@@ -252,7 +250,6 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 .status-badge { margin-left: 6px; padding: 3px 7px; border-radius: 999px; color: #78350f; background: #fde68a; letter-spacing: 0; }
 .temperature-block { display: grid; min-width: 200px; justify-items: center; }
 .weather-emoji { font-size: 76px; line-height: 1; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .18)); }
-.weather-emoji.small { font-size: 48px; }
 .temperature-block strong { margin-top: 8px; font-size: clamp(38px, 7vw, 66px); line-height: 1; }
 .temperature-block small { margin-top: 8px; color: rgba(255, 255, 255, .8); }
 .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
@@ -280,6 +277,7 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 .day-card small { color: var(--muted); text-align: center; font-size: 11px; }
 
 .app-footer { justify-content: space-between; gap: 14px; margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.app-footer a { text-decoration: underline; text-underline-offset: 2px; }
 
 .modal { width: min(520px, calc(100% - 30px)); padding: 0; border: 1px solid var(--line); border-radius: 22px; color: var(--text); background: var(--surface-solid); box-shadow: 0 24px 80px rgba(0, 0, 0, .34); }
 .modal::backdrop { background: rgba(2, 12, 18, .68); backdrop-filter: blur(4px); }
@@ -288,13 +286,6 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 .modal p { color: var(--muted); line-height: 1.65; }
 .modal-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--surface-muted); font-size: 21px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
-.wide-modal { width: min(900px, calc(100% - 30px)); }
-.comparison-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
-.comparison-card { display: grid; padding: 18px; justify-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-muted); text-align: center; }
-.comparison-card h3, .comparison-card p { margin: 4px 0; }
-.comparison-card > strong { font-size: 28px; }
-.comparison-card small { color: var(--muted); }
-
 .toast { position: fixed; z-index: 100; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); width: max-content; max-width: calc(100% - 32px); padding: 12px 18px; transform: translateX(-50%); border-radius: 999px; color: white; background: #0f172a; box-shadow: 0 12px 30px rgba(0, 0, 0, .3); text-align: center; font-size: 13px; }
 
 @media (max-width: 760px) {
@@ -339,7 +330,6 @@ button:disabled { cursor: wait; opacity: .62; transform: none !important; }
   .modal form { padding: 24px 18px; }
   .modal-actions { flex-direction: column; }
   .modal-actions button { width: 100%; }
-  .comparison-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

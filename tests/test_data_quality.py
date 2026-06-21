@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "il-ilce-with-loc.json"
+INDEX_PATH = ROOT / "index.html"
+SERVICE_WORKER_PATH = ROOT / "service-worker.js"
 
 
 def distance_km(lat1, lon1, lat2, lon2):
@@ -80,6 +82,21 @@ class CoordinateQualityTests(unittest.TestCase):
 
         self.assertEqual(invalid, [])
 
+
+class StaticQualityTests(unittest.TestCase):
+    def test_service_worker_does_not_mask_stale_weather_as_live_data(self):
+        service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("api.open-meteo.com", service_worker)
+        self.assertNotIn("air-quality-api.open-meteo.com", service_worker)
+        self.assertIn("key.startsWith(CACHE_PREFIX)", service_worker)
+
+    def test_versioned_assets_match_service_worker_shell(self):
+        index = INDEX_PATH.read_text(encoding="utf-8")
+        service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")
+        self.assertIn("style.css?v=20260621-2", index)
+        self.assertIn("app.js?v=20260621-2", index)
+        self.assertIn("style.css?v=20260621-2", service_worker)
+        self.assertIn("app.js?v=20260621-2", service_worker)
 
 if __name__ == "__main__":
     unittest.main()

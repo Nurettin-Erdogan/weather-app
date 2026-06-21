@@ -1,12 +1,17 @@
 import { formatHour } from './utils.js';
 
 export function drawHourlyChart(canvas, hourly, unit = 'C', theme = 'light') {
-  if (!canvas || !hourly?.time?.length) return;
-  const count = Math.min(24, hourly.time.length);
-  const temperatures = hourly.temperature_2m.slice(0, count).map(value => (
-    unit === 'F' ? (value * 9 / 5) + 32 : value
-  ));
-  const probabilities = hourly.precipitation_probability.slice(0, count);
+  if (!canvas || !hourly?.time?.length || !hourly?.temperature_2m?.length) return;
+  const count = Math.min(24, hourly.time.length, hourly.temperature_2m.length);
+  const temperatures = hourly.temperature_2m.slice(0, count).map(value => {
+    const temperature = Number(value);
+    return unit === 'F' ? (temperature * 9 / 5) + 32 : temperature;
+  });
+  if (!temperatures.every(Number.isFinite)) return;
+  const probabilities = Array.from(
+    { length: count },
+    (_, index) => Number(hourly.precipitation_probability?.[index]) || 0,
+  );
   const ratio = window.devicePixelRatio || 1;
   const width = Math.max(canvas.clientWidth, 320);
   const height = 220;

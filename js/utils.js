@@ -19,7 +19,7 @@ export function titleCase(value, language = 'tr') {
   return String(value || '')
     .toLocaleLowerCase(locale)
     .split(/(\s+|-|\/)/)
-    .map(part => /\w/u.test(part) ? part.charAt(0).toLocaleUpperCase(locale) + part.slice(1) : part)
+    .map(part => /[\p{L}\p{N}]/u.test(part) ? part.charAt(0).toLocaleUpperCase(locale) + part.slice(1) : part)
     .join('');
 }
 
@@ -62,7 +62,17 @@ export function formatTemperature(celsius, unit = 'C') {
 
 export function formatLocalTime(value, language = 'tr') {
   if (!value) return '—';
-  const [date = '', time = ''] = String(value).split('T');
+  const text = String(value);
+  if (/(?:Z|[+-]\d{2}:\d{2})$/.test(text)) {
+    const instant = new Date(text);
+    if (!Number.isNaN(instant.getTime())) {
+      return new Intl.DateTimeFormat(language === 'tr' ? 'tr-TR' : 'en-US', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(instant);
+    }
+  }
+  const [date = '', time = ''] = text.split('T');
   const parts = date.split('-');
   if (parts.length !== 3) return String(value);
   return language === 'tr'
@@ -106,13 +116,4 @@ export function airQualityLabel(value, language = 'tr') {
 
 export function cacheKey(latitude, longitude) {
   return `${Number(latitude).toFixed(3)},${Number(longitude).toFixed(3)}`;
-}
-
-export function mapUrls(latitude, longitude) {
-  const lat = Number(latitude).toFixed(5);
-  const lon = Number(longitude).toFixed(5);
-  return {
-    map: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=10/${lat}/${lon}`,
-    radar: `https://www.windy.com/${lat}/${lon}?radar,${lat},${lon},8`,
-  };
 }

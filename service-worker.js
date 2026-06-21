@@ -1,9 +1,10 @@
-const CACHE_VERSION = 'weather-app-v5-cache-reset';
+const CACHE_PREFIX = 'weather-app-';
+const CACHE_VERSION = `${CACHE_PREFIX}v7-location`;
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css?v=20260615-2',
-  './app.js?v=20260615-2',
+  './style.css?v=20260621-2',
+  './app.js?v=20260621-2',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/icon-192.png',
@@ -27,36 +28,17 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key)),
+        keys
+          .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE_VERSION)
+          .map(key => caches.delete(key)),
       ))
       .then(() => self.clients.claim()),
   );
 });
 
-function isWeatherRequest(url) {
-  return [
-    'api.open-meteo.com',
-    'air-quality-api.open-meteo.com',
-    'geocoding-api.open-meteo.com',
-  ].includes(url.hostname);
-}
-
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-
-  if (isWeatherRequest(url)) {
-    event.respondWith(
-      fetch(event.request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      }).catch(() => caches.match(event.request)),
-    );
-    return;
-  }
 
   if (url.origin === self.location.origin) {
     event.respondWith(
@@ -69,18 +51,9 @@ self.addEventListener('fetch', event => {
       }).catch(async () => {
         const cached = await caches.match(event.request);
         if (cached) return cached;
-        return event.request.mode === 'navigate' ? caches.match('./index.html') : undefined;
+        if (event.request.mode === 'navigate') return caches.match('./index.html');
+        return new Response('', { status: 504, statusText: 'Offline' });
       }),
     );
   }
-});
-
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      const existing = clients.find(client => 'focus' in client);
-      return existing ? existing.focus() : self.clients.openWindow('./');
-    }),
-  );
 });
