@@ -93,10 +93,10 @@ class StaticQualityTests(unittest.TestCase):
     def test_versioned_assets_match_service_worker_shell(self):
         index = INDEX_PATH.read_text(encoding="utf-8")
         service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")
-        self.assertIn("style.css?v=20260621-2", index)
-        self.assertIn("app.js?v=20260621-2", index)
-        self.assertIn("style.css?v=20260621-2", service_worker)
-        self.assertIn("app.js?v=20260621-2", service_worker)
+        self.assertIn("style.css?v=20260622-1", index)
+        self.assertIn("app.js?v=20260622-1", index)
+        self.assertIn("style.css?v=20260622-1", service_worker)
+        self.assertIn("app.js?v=20260622-1", service_worker)
 
 if __name__ == "__main__":
     unittest.main()

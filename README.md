@@ -10,14 +10,17 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - Türkçe karakterleri destekleyen hızlı il/ilçe araması
 - Anlık sıcaklık ve hissedilen sıcaklık
 - Nem, yağış, bulutluluk, rüzgâr yönü ve rüzgâr hamlesi
-- Avrupa Hava Kalitesi İndeksi, UV, gün doğumu ve gün batımı
+- Avrupa Hava Kalitesi İndeksi, anlık UV, günlük maksimum UV, gün doğumu ve gün batımı
 - 24 saatlik sıcaklık/yağış grafiği ve saatlik kartlar
+- Gün seçimiyle birlikte güncellenen saatlik grafik ve kartlar
 - 5 günlük tahmin
 - Celsius/Fahrenheit seçimi
+- Klavye ok tuşlarıyla kullanılabilen erişilebilir sıcaklık birimi seçimi
 - Son aramaları cihazda saklama ve hızlı yeniden açma
 - Açık/koyu tema ve Türkçe/İngilizce arayüz
 - GPS konumu ve açık onaylı yaklaşık IP konumu
 - GPS konumunu idari ilçe adına eşleyen OpenStreetMap ters konum çözümleme
+- Ters konum çevrimdışıyken yaklaşık ilçe rozeti ve şehir seviyesinde dürüst IP konumu
 - PWA kurulumu ve çevrimdışı son tahmin desteği
 - Açık sekmede, bağlantı geri geldiğinde ve uygulamaya dönüldüğünde sessiz otomatik yenileme
 - Mobil ve masaüstü erişilebilir arayüz
@@ -60,7 +63,9 @@ Test paketi şunları zorunlu kılar:
 - API hata/yeniden deneme akışı
 - IP servisine kullanıcı onayı olmadan istek gönderilmemesi
 - Türkiye dışındaki GPS konumlarının reddedilmesi
+- Aynı isimli ilçelerde il seçimi zorunluluğu
 - Bozuk yerel depolama verisinde güvenli varsayılanlara dönülmesi
+- Bozuk veya Türkiye dışı çevrimdışı hava önbelleğinin reddedilmesi
 - PWA önbellek sürümü ile HTML varlık sürümlerinin eşleşmesi
 
 ## Veri Bakımı

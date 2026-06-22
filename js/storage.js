@@ -35,12 +35,25 @@ export function saveSettings(settings) {
 }
 
 function validLocation(location) {
+  const latitude = Number(location?.latitude);
+  const longitude = Number(location?.longitude);
   return location
     && typeof location === 'object'
     && typeof location.id === 'string'
     && typeof location.label === 'string'
-    && Number.isFinite(Number(location.latitude))
-    && Number.isFinite(Number(location.longitude));
+    && Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && latitude >= 35 && latitude <= 43
+    && longitude >= 25 && longitude <= 45;
+}
+
+function validCacheEntry(entry) {
+  const payload = entry?.payload;
+  return typeof entry?.savedAt === 'string'
+    && validLocation(payload?.location)
+    && payload?.bundle?.weather?.current
+    && Array.isArray(payload.bundle.weather.hourly?.time)
+    && Array.isArray(payload.bundle.weather.daily?.time);
 }
 
 export function getRecent() {
@@ -66,7 +79,7 @@ export function saveWeatherCache(key, payload) {
   cache[key] = { payload, savedAt };
   const trimmed = Object.fromEntries(
     Object.entries(cache)
-      .filter(([, entry]) => entry?.payload && typeof entry.savedAt === 'string')
+      .filter(([, entry]) => validCacheEntry(entry))
       .sort(([, a], [, b]) => Date.parse(a.savedAt) - Date.parse(b.savedAt))
       .slice(-12),
   );
@@ -77,10 +90,10 @@ export function saveWeatherCache(key, payload) {
 export function getWeatherCache(key) {
   const cache = read(KEYS.cache, {});
   const entry = cache && typeof cache === 'object' && !Array.isArray(cache) ? cache[key] : null;
-  return entry?.payload && typeof entry.savedAt === 'string' ? entry : null;
+  return validCacheEntry(entry) ? entry : null;
 }
 
 export function getLatestWeatherCache() {
   const latest = read(KEYS.latest, null);
-  return latest?.payload && typeof latest.savedAt === 'string' ? latest : null;
+  return validCacheEntry(latest) ? latest : null;
 }

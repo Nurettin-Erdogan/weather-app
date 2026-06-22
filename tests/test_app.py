@@ -7,6 +7,12 @@ from playwright.sync_api import sync_playwright
 
 
 BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+HOURLY_TIMES = [
+    f"2026-06-{day:02d}T{hour:02d}:00"
+    for day in range(15, 20)
+    for hour in range(24)
+]
+HOURLY_HOURS = [hour for _day in range(15, 20) for hour in range(24)]
 
 
 WEATHER_FIXTURE = {
@@ -29,14 +35,14 @@ WEATHER_FIXTURE = {
         "wind_gusts_10m": 18.5,
     },
     "hourly": {
-        "time": [f"2026-06-15T{hour:02d}:00" for hour in range(24)],
-        "temperature_2m": [18 + hour * 0.4 for hour in range(24)],
-        "apparent_temperature": [18 + hour * 0.4 for hour in range(24)],
-        "precipitation_probability": [0] * 24,
-        "relative_humidity_2m": [55] * 24,
-        "weather_code": [1] * 24,
-        "is_day": [0] * 6 + [1] * 14 + [0] * 4,
-        "wind_speed_10m": [10] * 24,
+        "time": HOURLY_TIMES,
+        "temperature_2m": [18 + hour * 0.4 for hour in HOURLY_HOURS],
+        "apparent_temperature": [18 + hour * 0.4 for hour in HOURLY_HOURS],
+        "precipitation_probability": [10] * len(HOURLY_TIMES),
+        "relative_humidity_2m": [55] * len(HOURLY_TIMES),
+        "weather_code": [1] * len(HOURLY_TIMES),
+        "is_day": [0 if hour < 6 or hour >= 20 else 1 for hour in HOURLY_HOURS],
+        "wind_speed_10m": [10] * len(HOURLY_TIMES),
     },
     "daily": {
         "time": [f"2026-06-{day:02d}" for day in range(15, 20)],
@@ -52,7 +58,22 @@ WEATHER_FIXTURE = {
 }
 
 AIR_FIXTURE = {
-    "current": {"time": "2026-06-15T10:00", "european_aqi": 28, "pm10": 15, "pm2_5": 7}
+    "current": {
+        "time": "2026-06-15T10:00",
+        "european_aqi": 28,
+        "pm10": 15,
+        "pm2_5": 7,
+        "uv_index": 0.8,
+    }
+}
+
+IP_FIXTURE = {
+    "success": True,
+    "latitude": 41.01,
+    "longitude": 28.97,
+    "city": "İstanbul",
+    "region": "İstanbul",
+    "country": "Türkiye",
 }
 
 REVERSE_FIXTURE = {
@@ -87,6 +108,7 @@ class WeatherAppTests(unittest.TestCase):
         self.page = self.context.new_page()
         self.page_errors = []
         self.forecast_queries = []
+        self.air_queries = []
         self.ip_requests = []
         self.reverse_requests = []
         self.page.on("pageerror", lambda error: self.page_errors.append(str(error)))
@@ -101,6 +123,8 @@ class WeatherAppTests(unittest.TestCase):
     def _capture_request(self, request):
         if "api.open-meteo.com/v1/forecast" in request.url:
             self.forecast_queries.append(parse_qs(urlparse(request.url).query))
+        if "air-quality-api.open-meteo.com/v1/air-quality" in request.url:
+            self.air_queries.append(parse_qs(urlparse(request.url).query))
         if "ipwho.is" in request.url:
             self.ip_requests.append(request.url)
         if "photon.komoot.io" in request.url:
@@ -141,18 +165,25 @@ class WeatherAppTests(unittest.TestCase):
         self.assertEqual(query["longitude"][0], "27.8849")
         self.assertEqual(query["forecast_days"][0], "5")
         self.assertIn("is_day", query["hourly"][0])
+        self.assertIn("uv_index", self.air_queries[-1]["current"][0])
         self.assertIn("Karesi / Balıkesir", self.page.locator(".current-location h2").inner_text())
         self.assertEqual(self.page.locator(".metric-card").count(), 9)
+        uv_card = self.page.locator(".metric-card").filter(has_text="UV indeksi")
+        self.assertIn("0,8", uv_card.inner_text())
+        self.assertIn("Günlük en yüksek: 7,2", uv_card.inner_text())
         self.assertEqual(self.page.locator(".day-card").count(), 5)
+        self.assertEqual(self.page.locator(".chart-legend span").count(), 2)
         self.assertEqual(
             self.page.locator(".forecast-section").nth(1).locator(".eyebrow").text_content(),
             "5 gün",
         )
-        self.assertEqual(self.page.locator(".hour-card").count(), 14)
+        self.assertEqual(self.page.locator(".hour-card").count(), 24)
         self.assertEqual(self.page.locator(".day-card").first.get_attribute("aria-pressed"), "true")
         self.page.locator(".day-card").nth(1).click()
         self.assertEqual(self.page.locator(".day-card").nth(1).get_attribute("aria-pressed"), "true")
         self.assertEqual(self.page.locator(".day-card").first.get_attribute("aria-pressed"), "false")
+        self.assertEqual(self.page.locator(".hour-card").count(), 24)
+        self.assertIn("16", self.page.locator("#hourlyChart").get_attribute("aria-label"))
         self.assertEqual(self.page.locator("#suggestions .suggestion-item").count(), 0)
         self.assertEqual(self.page_errors, [])
 
@@ -161,6 +192,7 @@ class WeatherAppTests(unittest.TestCase):
         result = self.page.evaluate("""
             async () => {
               const utils = await import('./js/utils.js');
+              const search = await import('./js/search.js');
               const instant = '2026-06-15T12:34:00Z';
               const expected = new Intl.DateTimeFormat('tr-TR', {
                 dateStyle: 'short', timeStyle: 'short'
@@ -168,11 +200,17 @@ class WeatherAppTests(unittest.TestCase):
               return {
                 title: utils.titleCase('çANKAYA / şİŞLİ', 'tr'),
                 localTimeIsCorrect: utils.formatLocalTime(instant, 'tr') === expected,
+                englishPercent: utils.formatPercentage(10, 'en'),
+                centralDistrict: search.findDistrictByAddress({
+                  city: 'Kastamonu', state: 'Kastamonu'
+                }, 'tr')?.label,
               };
             }
         """)
         self.assertEqual(result["title"], "Çankaya / Şişli")
         self.assertTrue(result["localTimeIsCorrect"])
+        self.assertEqual(result["englishPercent"], "10%")
+        self.assertEqual(result["centralDistrict"], "Merkez / Kastamonu")
 
     def test_invalid_local_storage_falls_back_to_safe_defaults(self):
         self.page.add_init_script("""
@@ -181,18 +219,37 @@ class WeatherAppTests(unittest.TestCase):
             }));
             localStorage.setItem('weather_recent_v2', JSON.stringify({broken: true}));
             localStorage.setItem('weather_cache_v2', JSON.stringify([]));
+            localStorage.setItem('weather_latest_v2', JSON.stringify({
+              savedAt: '2026-06-15T10:00:00Z', payload: {broken: true}
+            }));
         """)
         self.open_app()
         self.assertEqual(self.page.locator("html").get_attribute("lang"), "tr")
         self.assertEqual(self.page.locator("#unitCBtn").get_attribute("aria-checked"), "true")
         self.assertTrue(self.page.locator("#recentSection").is_hidden())
+        self.assertTrue(self.page.evaluate("""
+            async () => (await import('./js/storage.js')).getLatestWeatherCache() === null
+        """))
+        self.assertEqual(self.page_errors, [])
+
+    def test_ambiguous_district_name_requires_province_selection(self):
+        self.open_app()
+        self.page.fill("#cityInput", "Merkez")
+        self.page.press("#cityInput", "Enter")
+        self.page.wait_for_selector("#suggestions .suggestion-item")
+        self.assertEqual(self.page.locator("#suggestions .suggestion-item").count(), 7)
+        self.assertIn("birden fazla ilde", self.page.locator("#notice").inner_text())
+        self.assertEqual(self.forecast_queries, [])
+        self.assertEqual(self.page.locator(".current-card").count(), 0)
         self.assertEqual(self.page_errors, [])
 
     def test_unit_language_and_theme_controls(self):
         self.open_app()
         self.search("Karesi")
-        self.page.click("#unitFBtn")
+        self.page.focus("#unitCBtn")
+        self.page.press("#unitCBtn", "ArrowRight")
         self.assertIn("°F", self.page.locator(".temperature-block strong").inner_text())
+        self.assertEqual(self.page.locator("#unitFBtn").get_attribute("aria-checked"), "true")
 
         self.page.click("#languageBtn")
         self.assertEqual(self.page.locator("html").get_attribute("lang"), "en")
@@ -210,6 +267,7 @@ class WeatherAppTests(unittest.TestCase):
         self.page = self.context.new_page()
         self.page_errors = []
         self.forecast_queries = []
+        self.air_queries = []
         self.ip_requests = []
         self.page.on("request", self._capture_request)
         self.page.add_init_script("""
@@ -232,6 +290,7 @@ class WeatherAppTests(unittest.TestCase):
         self.page = self.context.new_page()
         self.page_errors = []
         self.forecast_queries = []
+        self.air_queries = []
         self.ip_requests = []
         self.page.on("request", self._capture_request)
         self.page.add_init_script("""
@@ -258,6 +317,7 @@ class WeatherAppTests(unittest.TestCase):
         self.page = self.context.new_page()
         self.page_errors = []
         self.forecast_queries = []
+        self.air_queries = []
         self.ip_requests = []
         self.reverse_requests = []
         self.page.on("pageerror", lambda error: self.page_errors.append(str(error)))
@@ -287,6 +347,46 @@ class WeatherAppTests(unittest.TestCase):
         self.assertEqual(query["latitude"][0], "41.071662")
         self.assertEqual(query["longitude"][0], "28.889662")
         self.assertTrue(self.page.locator("#locationBtn").is_enabled())
+        self.assertEqual(self.page_errors, [])
+
+    def test_ip_location_stays_city_level_and_is_marked_approximate(self):
+        self.context.close()
+        self.context = self.browser.new_context(locale="tr-TR", service_workers="block")
+        self.page = self.context.new_page()
+        self.page_errors = []
+        self.forecast_queries = []
+        self.air_queries = []
+        self.ip_requests = []
+        self.reverse_requests = []
+        self.page.on("pageerror", lambda error: self.page_errors.append(str(error)))
+        self.page.on("request", self._capture_request)
+        self.page.route("https://api.open-meteo.com/**", self._weather_route)
+        self.page.route("https://air-quality-api.open-meteo.com/**", self._air_route)
+        self.page.route(
+            "https://ipwho.is/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(IP_FIXTURE),
+            ),
+        )
+        self.page.add_init_script("""
+            Object.defineProperty(navigator, 'geolocation', {
+              configurable: true,
+              value: { getCurrentPosition: (success, error) => error({ code: 1, PERMISSION_DENIED: 1 }) }
+            });
+        """)
+        self.open_app()
+        self.page.click("#locationBtn")
+        self.page.get_by_role("button", name="IP ile yaklaşık konumu bul").click()
+        self.page.click("#allowIpBtn")
+        self.page.wait_for_selector(".current-card", timeout=15000)
+        self.assertEqual(self.page.locator(".current-location h2").inner_text(), "İstanbul")
+        self.assertIn("YAKLAŞIK KONUM", self.page.locator(".status-badge").inner_text())
+        self.assertEqual(len(self.ip_requests), 1)
+        query = self.forecast_queries[-1]
+        self.assertEqual(query["latitude"][0], "41.01")
+        self.assertEqual(query["longitude"][0], "28.97")
         self.assertEqual(self.page_errors, [])
 
     def test_api_failure_is_a_real_error_with_retry(self):

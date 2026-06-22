@@ -60,6 +60,20 @@ export function formatTemperature(celsius, unit = 'C') {
     : `${Math.round(value)} °C`;
 }
 
+export function formatDecimal(value, language = 'tr', maximumFractionDigits = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return new Intl.NumberFormat(language === 'tr' ? 'tr-TR' : 'en-US', {
+    maximumFractionDigits,
+  }).format(number);
+}
+
+export function formatPercentage(value, language = 'tr') {
+  const number = formatDecimal(value, language, 0);
+  if (number === '—') return number;
+  return language === 'tr' ? `%${number}` : `${number}%`;
+}
+
 export function formatLocalTime(value, language = 'tr') {
   if (!value) return '—';
   const text = String(value);

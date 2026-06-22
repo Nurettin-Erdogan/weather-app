@@ -1,10 +1,10 @@
 const CACHE_PREFIX = 'weather-app-';
-const CACHE_VERSION = `${CACHE_PREFIX}v7-location`;
+const CACHE_VERSION = `${CACHE_PREFIX}v8-audit`;
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css?v=20260621-2',
-  './app.js?v=20260621-2',
+  './style.css?v=20260622-1',
+  './app.js?v=20260622-1',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/icon-192.png',

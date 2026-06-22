@@ -4,15 +4,17 @@ import {
 import { drawHourlyChart } from './js/chart.js';
 import { translate } from './js/i18n.js';
 import {
-  findDistrict, findDistrictByAddress, loadDistrictIndex, nearestDistrict, searchDistricts,
+  findDistrict, findDistrictByAddress, hasAmbiguousDistrictName, loadDistrictIndex,
+  nearestDistrict, searchDistricts,
 } from './js/search.js';
 import {
   addRecent, clearRecent, getLatestWeatherCache, getRecent,
   getSettings, getWeatherCache, saveSettings, saveWeatherCache,
 } from './js/storage.js';
 import {
-  airQualityLabel, cacheKey, debounce, escapeHtml, formatDay, formatHour,
-  formatLocalTime, formatTemperature, isTurkeyCoordinate, normalizeForSearch, windDirection,
+  airQualityLabel, cacheKey, debounce, escapeHtml, formatDay, formatDecimal, formatHour,
+  formatLocalTime, formatPercentage, formatTemperature, isTurkeyCoordinate,
+  normalizeForSearch, windDirection,
 } from './js/utils.js';
 import { weatherIcon, weatherLabel, weatherTheme } from './js/weather-codes.js';
 
@@ -77,6 +79,13 @@ function applySettings() {
   updateTranslations();
   if (state.currentBundle) renderWeather();
   renderRecentLocations();
+}
+
+function selectUnit(unit, focus = false) {
+  state.settings.unit = unit;
+  saveSettings(state.settings);
+  applySettings();
+  if (focus) (unit === 'C' ? elements.unitCBtn : elements.unitFBtn).focus();
 }
 
 function setLoading(loading) {
@@ -214,10 +223,17 @@ function selectLocation(location) {
 }
 
 async function handleSearch() {
+  if (state.locationLookupInProgress) return;
   const query = elements.cityInput.value.trim();
   if (!query) return;
-  renderSuggestions([], '');
   let location = findDistrict(query, state.settings.language);
+  if (!location && hasAmbiguousDistrictName(query)) {
+    renderSuggestions(searchDistricts(query, state.settings.language), query);
+    showNotice(t('ambiguousLocation'), 'warning');
+    elements.cityInput.focus();
+    return;
+  }
+  renderSuggestions([], '');
   if (!location) {
     setLoading(true);
     const controller = new AbortController();
@@ -279,15 +295,26 @@ async function openWeather(location, options = {}) {
   }
 }
 
-function currentHourlyData(weather) {
+function hourlyIndexesForDate(weather, date) {
   const hourly = weather.hourly || {};
   const currentTime = weather.current?.time || '';
-  let start = hourly.time?.findIndex(value => value >= currentTime) ?? 0;
-  if (start < 0) start = 0;
-  const end = start + 24;
+  const currentDate = currentTime.slice(0, 10);
+  return date === currentDate
+    ? (hourly.time || [])
+      .map((value, index) => value >= currentTime ? index : -1)
+      .filter(index => index >= 0)
+      .slice(0, 24)
+    : (hourly.time || [])
+      .map((value, index) => value.startsWith(date) ? index : -1)
+      .filter(index => index >= 0);
+}
+
+function hourlyDataForDate(weather, date) {
+  const hourly = weather.hourly || {};
+  const indexes = hourlyIndexesForDate(weather, date);
   return Object.fromEntries(Object.entries(hourly).map(([key, values]) => [
     key,
-    Array.isArray(values) ? values.slice(start, end) : values,
+    Array.isArray(values) ? indexes.map(index => values[index]) : values,
   ]));
 }
 
@@ -313,14 +340,21 @@ function renderWeather() {
   const updated = formatLocalTime(current.time, language);
   const firstSunrise = daily.sunrise?.[0] ? formatHour(daily.sunrise[0]) : '—';
   const firstSunset = daily.sunset?.[0] ? formatHour(daily.sunset[0]) : '—';
-  const staleBadge = state.currentIsCached ? `<span class="status-badge">${escapeHtml(t('stale'))}</span>` : '';
+  const badges = [];
+  if (state.currentIsCached) badges.push(t('stale'));
+  if (['gps-nearest', 'gps-low-accuracy', 'ip-approx'].includes(location.source)) {
+    badges.push(t('approximateLocation'));
+  }
+  const statusBadges = badges.map(label => `<span class="status-badge">${escapeHtml(label)}</span>`).join('');
+  const dailyUv = formatDecimal(daily.uv_index_max?.[0], language);
+  const uvDetail = dailyUv === '—' ? '' : `${t('dailyMaximum')}: ${dailyUv}`;
 
   document.body.dataset.weather = weatherTheme(current.weather_code, current.is_day);
   elements.result.innerHTML = `
     <section class="current-card">
       <div class="current-main">
         <div class="current-location">
-          <span class="eyebrow">${escapeHtml(t('current'))} ${staleBadge}</span>
+          <span class="eyebrow">${escapeHtml(t('current'))} ${statusBadges}</span>
           <h2>${escapeHtml(location.label || location.name)}</h2>
           <p>${escapeHtml(condition)} · ${escapeHtml(updated)} · ${escapeHtml(weather.timezone_abbreviation || '')}</p>
         </div>
@@ -339,14 +373,20 @@ function renderWeather() {
       ${metric('●', t('precipitation'), `${current.precipitation ?? 0} mm`)}
       ${metric('☁', t('cloud'), `${current.cloud_cover ?? '—'}%`)}
       ${metric('AQ', t('airQuality'), airQualityLabel(air.european_aqi, language), Number.isFinite(Number(air.european_aqi)) ? `AQI ${air.european_aqi}` : '')}
-      ${metric('UV', t('uvIndex'), String(daily.uv_index_max?.[0] ?? '—'))}
+      ${metric('UV', t('uvIndex'), formatDecimal(air.uv_index, language), uvDetail)}
       ${metric('↑', t('sunrise'), firstSunrise)}
       ${metric('↓', t('sunset'), firstSunset)}
     </section>
 
     <section class="forecast-section">
       <div class="section-heading"><div><span class="eyebrow">24h</span><h2>${escapeHtml(t('hourly'))}</h2></div></div>
-      <div class="chart-card"><canvas id="hourlyChart" role="img" aria-label="${escapeHtml(t('hourly'))}"></canvas></div>
+      <div class="chart-card">
+        <div class="chart-legend" aria-hidden="true">
+          <span><i class="legend-line"></i>${escapeHtml(t('temperature'))}</span>
+          <span><i class="legend-bar"></i>${escapeHtml(t('probability'))}</span>
+        </div>
+        <canvas id="hourlyChart" role="img" aria-label="${escapeHtml(t('hourly'))}"></canvas>
+      </div>
       <div id="hourlyRows" class="hourly-rows"></div>
     </section>
 
@@ -358,14 +398,13 @@ function renderWeather() {
             <strong>${escapeHtml(formatDay(date, language))}</strong>
             <span class="day-icon" aria-hidden="true">${weatherIcon(daily.weather_code?.[index], 1)}</span>
             <span><b>${escapeHtml(formatTemperature(daily.temperature_2m_max?.[index], unit))}</b> / ${escapeHtml(formatTemperature(daily.temperature_2m_min?.[index], unit))}</span>
-            <small>${escapeHtml(t('probability'))} %${daily.precipitation_probability_max?.[index] ?? 0}</small>
+            <small>${escapeHtml(t('probability'))} ${escapeHtml(formatPercentage(daily.precipitation_probability_max?.[index] ?? 0, language))}</small>
           </button>`).join('')}
       </div>
     </section>`;
 
-  const hourly = currentHourlyData(weather);
-  drawHourlyChart(document.getElementById('hourlyChart'), hourly, unit, resolvedTheme());
-  renderHourlyRows(hourly.time?.[0]?.slice(0, 10) || daily.time?.[0]);
+  const initialDate = current.time?.slice(0, 10) || daily.time?.[0];
+  renderHourlySelection(initialDate);
   document.querySelectorAll('.day-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.day-card').forEach(item => {
@@ -374,24 +413,30 @@ function renderWeather() {
       });
       card.classList.add('active');
       card.setAttribute('aria-pressed', 'true');
-      renderHourlyRows(card.dataset.date);
+      renderHourlySelection(card.dataset.date);
     });
   });
+}
+
+function renderHourlySelection(date) {
+  if (!date) return;
+  const weather = state.currentBundle?.weather || {};
+  const canvas = document.getElementById('hourlyChart');
+  const label = `${t('hourly')}: ${formatDay(date, state.settings.language)}`;
+  canvas?.setAttribute('aria-label', label);
+  drawHourlyChart(
+    canvas,
+    hourlyDataForDate(weather, date),
+    state.settings.unit,
+    resolvedTheme(),
+  );
+  renderHourlyRows(date);
 }
 
 function renderHourlyRows(date) {
   const weather = state.currentBundle?.weather || {};
   const hourly = weather.hourly || {};
-  const currentTime = weather.current?.time || '';
-  const currentDate = currentTime.slice(0, 10);
-  const indexes = date === currentDate
-    ? (hourly.time || [])
-      .map((value, index) => value >= currentTime ? index : -1)
-      .filter(index => index >= 0)
-      .slice(0, 24)
-    : (hourly.time || [])
-      .map((value, index) => value.startsWith(date) ? index : -1)
-      .filter(index => index >= 0);
+  const indexes = hourlyIndexesForDate(weather, date);
   const container = document.getElementById('hourlyRows');
   if (!container) return;
   container.innerHTML = indexes.map(index => `
@@ -399,7 +444,7 @@ function renderHourlyRows(date) {
       <strong>${escapeHtml(formatHour(hourly.time[index]))}</strong>
       <span aria-hidden="true">${weatherIcon(hourly.weather_code?.[index], hourly.is_day?.[index] ?? 1)}</span>
       <b>${escapeHtml(formatTemperature(hourly.temperature_2m?.[index], state.settings.unit))}</b>
-      <small>💧 %${hourly.precipitation_probability?.[index] ?? 0}</small>
+      <small>💧 ${escapeHtml(formatPercentage(hourly.precipitation_probability?.[index] ?? 0, state.settings.language))}</small>
       <small>${hourly.relative_humidity_2m?.[index] ?? '—'}%</small>
     </article>`).join('');
 }
@@ -412,6 +457,7 @@ async function handleUseLocation() {
   if (state.locationLookupInProgress) return;
   state.locationLookupInProgress = true;
   elements.locationBtn.disabled = true;
+  elements.searchBtn.disabled = true;
   showNotice(t('loading'));
   navigator.geolocation.getCurrentPosition(async position => {
     try {
@@ -440,22 +486,29 @@ async function handleUseLocation() {
       };
       location.latitude = latitude;
       location.longitude = longitude;
-      location.source = resolved ? 'gps-reverse' : 'gps-nearest';
+      location.accuracy = Number(position.coords.accuracy) || null;
+      location.source = resolved
+        ? (location.accuracy > 5000 ? 'gps-low-accuracy' : 'gps-reverse')
+        : 'gps-nearest';
       elements.cityInput.value = location.label;
       await openWeather(location);
     } finally {
       state.locationLookupInProgress = false;
-      if (!state.requestController) elements.locationBtn.disabled = false;
+      if (!state.requestController) {
+        elements.locationBtn.disabled = false;
+        elements.searchBtn.disabled = false;
+      }
     }
   }, error => {
     state.locationLookupInProgress = false;
     elements.locationBtn.disabled = false;
+    elements.searchBtn.disabled = false;
     if (error.code === error.PERMISSION_DENIED) {
       showNotice(t('locationDenied'), 'warning', [{ label: t('allowIp'), callback: () => elements.ipDialog.showModal() }]);
     } else {
       showNotice(t('locationUnavailable'), 'error');
     }
-  }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 });
 }
 
 async function useApproximateIpLocation() {
@@ -465,14 +518,19 @@ async function useApproximateIpLocation() {
   try {
     const approximate = await fetchApproximateIpLocation(controller.signal);
     if (!approximate) throw new Error('No IP location');
-    const location = nearestDistrict(approximate.latitude, approximate.longitude, state.settings.language) || {
-      id: `ip|${approximate.city}`,
-      name: approximate.city,
-      admin1: '',
-      label: approximate.city,
+    const name = approximate.city || t('approximateLocation');
+    const admin1 = approximate.region && normalizeForSearch(approximate.region) !== normalizeForSearch(name)
+      ? approximate.region
+      : '';
+    const location = {
+      id: `ip|${normalizeForSearch(name)}|${normalizeForSearch(admin1)}`,
+      name,
+      admin1,
+      label: admin1 ? `${name} / ${admin1}` : name,
       country: approximate.country,
       latitude: approximate.latitude,
       longitude: approximate.longitude,
+      source: 'ip-approx',
     };
     elements.cityInput.value = location.label;
     await openWeather(location);
@@ -497,6 +555,7 @@ function refreshCurrentWeatherIfStale() {
     !navigator.onLine
     || document.hidden
     || state.requestController
+    || state.locationLookupInProgress
     || !state.currentLocation
   ) return;
   const isStale = state.currentIsCached || Date.now() - state.currentFetchedAt >= AUTO_REFRESH_MS;
@@ -533,8 +592,16 @@ function bindEvents() {
     elements.cityInput.focus();
   });
   elements.locationBtn.addEventListener('click', handleUseLocation);
-  elements.unitCBtn.addEventListener('click', () => { state.settings.unit = 'C'; saveSettings(state.settings); applySettings(); });
-  elements.unitFBtn.addEventListener('click', () => { state.settings.unit = 'F'; saveSettings(state.settings); applySettings(); });
+  elements.unitCBtn.addEventListener('click', () => selectUnit('C'));
+  elements.unitFBtn.addEventListener('click', () => selectUnit('F'));
+  elements.unitCBtn.parentElement.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    const units = ['C', 'F'];
+    const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
+    const currentIndex = units.indexOf(state.settings.unit);
+    selectUnit(units[(currentIndex + direction + units.length) % units.length], true);
+  });
   elements.themeBtn.addEventListener('click', () => {
     state.settings.theme = resolvedTheme() === 'dark' ? 'light' : 'dark';
     saveSettings(state.settings);
@@ -576,7 +643,7 @@ async function registerServiceWorker() {
       location.reload();
     });
     state.serviceWorkerRegistration = await navigator.serviceWorker.register(
-      './service-worker.js?v=20260621-2',
+      './service-worker.js?v=20260622-1',
       { updateViaCache: 'none' },
     );
     await state.serviceWorkerRegistration.update();

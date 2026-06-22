@@ -95,7 +95,15 @@ export function findDistrictByAddress(address, language = 'tr') {
   const matches = districts.filter(item => districtNames.includes(item.districtNorm));
   const provinceMatch = matches.find(item => provinceNames.includes(item.provinceNorm));
   if (provinceMatch) return toLocation(provinceMatch, language);
-  return matches.length === 1 ? toLocation(matches[0], language) : null;
+  if (matches.length === 1) return toLocation(matches[0], language);
+  const cityIsProvince = districtNames.some(name => provinceNames.includes(name));
+  if (cityIsProvince) {
+    const centralDistrict = districts.find(item => (
+      item.districtNorm === 'merkez' && provinceNames.includes(item.provinceNorm)
+    ));
+    if (centralDistrict) return toLocation(centralDistrict, language);
+  }
+  return null;
 }
 
 export function searchDistricts(value, language = 'tr', limit = 7) {
@@ -119,10 +127,16 @@ export function findDistrict(value, language = 'tr') {
   }
   const exactDistricts = districts.filter(item => item.districtNorm === query);
   if (exactDistricts.length === 1) return toLocation(exactDistricts[0], language);
+  if (exactDistricts.length > 1) return null;
   const exactFull = districts.find(item => `${item.districtNorm} ${item.provinceNorm}` === query);
   if (exactFull) return toLocation(exactFull, language);
   const suggestion = searchDistricts(value, language, 1)[0];
   return suggestion && normalizeForSearch(suggestion.name).startsWith(query) ? suggestion : null;
+}
+
+export function hasAmbiguousDistrictName(value) {
+  const query = normalizeForSearch(value);
+  return query ? districts.filter(item => item.districtNorm === query).length > 1 : false;
 }
 
 export function nearestDistrict(latitude, longitude, language = 'tr') {

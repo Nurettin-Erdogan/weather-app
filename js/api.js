@@ -56,7 +56,7 @@ function airUrl(latitude, longitude) {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    current: 'european_aqi,pm10,pm2_5',
+    current: 'european_aqi,pm10,pm2_5,uv_index',
     timezone: 'auto',
   });
   return `${AIR_URL}?${params}`;
@@ -112,6 +112,7 @@ export async function fetchApproximateIpLocation(signal) {
     latitude: Number(data.latitude),
     longitude: Number(data.longitude),
     city: data.city || '',
+    region: data.region || '',
     country: data.country || 'Türkiye',
   };
 }
