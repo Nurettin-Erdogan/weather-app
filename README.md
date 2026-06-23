@@ -1,10 +1,29 @@
 # Hava Durumu
 
-Türkiye il ve ilçeleri için anlık hava durumu, saatlik grafikler, 5 günlük tahmin ve hava kalitesi gösteren, kurulum gerektirmeyen bir Progressive Web App'tir.
+<p align="center">
+  <img src="docs/preview.svg" alt="Hava Durumu uygulamasının önizlemesi" width="760">
+</p>
 
-Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
+Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
 
-## Özellikler
+<p align="center">
+  <a href="https://nurettin-erdogan.github.io/weather-app/"><strong>Canlı demoyu aç →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#testler">Testler</a>
+  &nbsp;·&nbsp;
+  <a href="#veri-ve-gizlilik">Gizlilik</a>
+</p>
+
+## Teknolojiler
+
+- Vanilla JavaScript ve ES modülleri
+- HTML/CSS, responsive ve erişilebilir arayüz
+- Open-Meteo Forecast + Air Quality API
+- OpenStreetMap tabanlı Photon ters konum çözümlemesi
+- Service Worker, Web App Manifest ve `localStorage`
+- Playwright tabanlı uçtan uca testler
+
+## Öne çıkan özellikler
 
 - 973 ilçe için doğrulanmış yerel koordinat verisi
 - Türkçe karakterleri destekleyen hızlı il/ilçe araması
@@ -35,7 +54,7 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - Canvas grafiğine ek olarak açılabilir erişilebilir saatlik veri tablosu
 - Zorla yenilemek yerine kullanıcının onayıyla etkinleşen PWA güncellemesi
 
-## Mahremiyet
+## Veri ve gizlilik
 
 - GPS konumu yalnızca kullanıcı butona bastığında tarayıcıdan istenir; koordinat hava verisi için Open-Meteo'ya, ilçe adını belirlemek için OpenStreetMap tabanlı Photon'a gönderilir.
 - Yerel listede bulunamayan arama metni eşleştirme için Open-Meteo geocoding servisine gönderilir.
