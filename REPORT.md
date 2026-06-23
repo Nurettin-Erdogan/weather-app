@@ -35,6 +35,10 @@ Son güncelleme: 22 Haziran 2026
 - Düşük hassasiyetli GPS sonucu yaklaşık olarak işaretleniyor; bozuk çevrimdışı hava önbelleği şema ve koordinat doğrulamasından geçmeden açılmıyor.
 - °C/°F radio grubu sağ/sol ve yukarı/aşağı ok tuşlarıyla, odak takibi korunarak kullanılabiliyor.
 - Yanlışlıkla sürüm kontrolüne alınmış derlenmiş Python önbellek dosyası kaldırıldı.
+- Tahmin kaynağı, alınma zamanı, tahmin zamanı, saat dilimi ve kullanılan koordinat görünür veri bilgisi alanına taşındı.
+- En fazla sekiz kayıtlı konum ve açılışta otomatik yüklenen varsayılan konum desteği eklendi.
+- Önümüzdeki 24 saat için fırtına, kuvvetli yağış, kar, rüzgâr, sıcaklık, don, UV ve hava kalitesi risk özeti eklendi.
+- Otomatik risk özetinin resmî uyarı olmadığı açıkça belirtildi ve MGM uyarı sayfasına bağlantı verildi.
 
 ## Eklenen Ürün Özellikleri
 
@@ -42,15 +46,18 @@ Son güncelleme: 22 Haziran 2026
 - Hava kalitesi, anlık/günlük maksimum UV, gün doğumu ve gün batımı
 - Gün seçimiyle eşzamanlı çalışan 24 saatlik canvas grafik ve saatlik kartlar
 - Son aramaları saklama ve hızlı yeniden açma
+- Kayıtlı konumlar ve varsayılan açılış konumu
+- Görünür veri kaynağı, güncellik ve koordinat bilgisi
+- Resmî uyarıdan ayrıştırılmış 24 saatlik otomatik hava riski özeti
 - Tema, dil ve sıcaklık birimi tercihleri
 - PWA kurulumu, service worker ve çevrimdışı son tahmin
 - Mobil uyum ve azaltılmış hareket tercihi
 
 ## Doğrulama Sonucu
 
-- Veri ve statik kalite testi: 6/6 başarılı
-- Tarayıcı testi: 14/14 başarılı
-- Toplam: 20/20 başarılı
+- Veri ve statik kalite testi: 7/7 başarılı
+- Tarayıcı testi: 20/20 başarılı
+- Toplam: 27/27 başarılı
 - 390 px mobil görünümde yatay taşma yok
 - Masaüstü ve mobil tarayıcı konsol hatası yok
 - PWA çevrimdışı yeniden yükleme başarılı
@@ -58,7 +65,7 @@ Son güncelleme: 22 Haziran 2026
 
 ## Ayrıntılı Denetim Özeti
 
-- Mimari: Çalışma zamanında üçüncü taraf JavaScript bağımlılığı yok; uygulama yedi küçük ES modülüne ayrılmış durumda.
+- Mimari: Çalışma zamanında üçüncü taraf JavaScript bağımlılığı yok; uygulama sekiz küçük ES modülüne ayrılmış durumda.
 - Veri: 81 il, 973 ilçe ve 973 benzersiz koordinat otomatik olarak doğrulanıyor.
 - Güvenlik: İçerik Güvenlik Politikası etkin, kod içinde gizli anahtar yok, dinamik HTML değerleri kaçış işleminden geçiyor ve referrer gönderilmiyor.
 - Mahremiyet: GPS yalnızca kullanıcı eylemiyle isteniyor; IP konumu ikinci bir açık onaya bağlı ve arama servisinin ne zaman çağrıldığı belgeleniyor.

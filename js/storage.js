@@ -1,6 +1,7 @@
 const KEYS = {
   settings: 'weather_settings_v2',
   recent: 'weather_recent_v2',
+  saved: 'weather_saved_v1',
   cache: 'weather_cache_v2',
   latest: 'weather_latest_v2',
 };
@@ -21,12 +22,36 @@ function write(key, value) {
   }
 }
 
+function threshold(value, fallback, minimum, maximum, step = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  const clamped = Math.min(maximum, Math.max(minimum, number));
+  return Math.round(clamped / step) * step;
+}
+
+export function defaultAlertPreferences() {
+  return { rainProbability: 60, windSpeed: 45, uvIndex: 7 };
+}
+
+function alertPreferences(value) {
+  const defaults = defaultAlertPreferences();
+  return {
+    rainProbability: threshold(value?.rainProbability, defaults.rainProbability, 20, 100, 5),
+    windSpeed: threshold(value?.windSpeed, defaults.windSpeed, 20, 80, 5),
+    uvIndex: threshold(value?.uvIndex, defaults.uvIndex, 3, 11),
+  };
+}
+
 export function getSettings() {
   const stored = read(KEYS.settings, {});
   return {
     unit: ['C', 'F'].includes(stored?.unit) ? stored.unit : 'C',
     language: ['tr', 'en'].includes(stored?.language) ? stored.language : 'tr',
     theme: ['system', 'light', 'dark'].includes(stored?.theme) ? stored.theme : 'system',
+    defaultLocationId: typeof stored?.defaultLocationId === 'string'
+      ? stored.defaultLocationId
+      : null,
+    alerts: alertPreferences(stored?.alerts),
   };
 }
 
@@ -70,6 +95,25 @@ export function addRecent(location) {
 
 export function clearRecent() {
   write(KEYS.recent, []);
+}
+
+export function getSavedLocations() {
+  const saved = read(KEYS.saved, []);
+  return Array.isArray(saved) ? saved.filter(validLocation).slice(0, 8) : [];
+}
+
+export function addSavedLocation(location) {
+  if (!validLocation(location)) return getSavedLocations();
+  const saved = getSavedLocations().filter(item => item.id !== location.id);
+  saved.unshift(location);
+  write(KEYS.saved, saved.slice(0, 8));
+  return saved.slice(0, 8);
+}
+
+export function removeSavedLocation(id) {
+  const saved = getSavedLocations().filter(item => item.id !== id);
+  write(KEYS.saved, saved);
+  return saved;
 }
 
 export function saveWeatherCache(key, payload) {

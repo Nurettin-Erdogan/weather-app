@@ -26,7 +26,6 @@ FILES = [
     "run-local.bat",
     "run-local.sh",
     "launch-local.bat",
-    "ss/2.png",
     "data/il-ilce-with-loc.json",
     "icons/icon.svg",
     "icons/icon-192.png",
@@ -37,6 +36,7 @@ FILES = [
     "js/search.js",
     "js/storage.js",
     "js/utils.js",
+    "js/weather-alerts.js",
     "js/weather-codes.js",
 ]
 

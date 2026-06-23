@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import unittest
 from urllib.parse import parse_qs, urlparse
 
@@ -39,6 +40,7 @@ WEATHER_FIXTURE = {
         "temperature_2m": [18 + hour * 0.4 for hour in HOURLY_HOURS],
         "apparent_temperature": [18 + hour * 0.4 for hour in HOURLY_HOURS],
         "precipitation_probability": [10] * len(HOURLY_TIMES),
+        "precipitation": [0] * len(HOURLY_TIMES),
         "relative_humidity_2m": [55] * len(HOURLY_TIMES),
         "weather_code": [1] * len(HOURLY_TIMES),
         "is_day": [0 if hour < 6 or hour >= 20 else 1 for hour in HOURLY_HOURS],
@@ -69,6 +71,7 @@ AIR_FIXTURE = {
 
 IP_FIXTURE = {
     "success": True,
+    "country_code": "TR",
     "latitude": 41.01,
     "longitude": 28.97,
     "city": "İstanbul",
@@ -89,6 +92,28 @@ REVERSE_FIXTURE = {
         },
         "geometry": {"type": "Point", "coordinates": [28.889662, 41.071662]},
     }],
+}
+
+FOREIGN_REVERSE_FIXTURE = {
+    "type": "FeatureCollection",
+    "features": [{
+        "type": "Feature",
+        "properties": {
+            "country": "Greece",
+            "countrycode": "GR",
+        },
+        "geometry": {"type": "Point", "coordinates": [26.978, 37.754]},
+    }],
+}
+
+FOREIGN_IP_FIXTURE = {
+    "success": True,
+    "country_code": "GR",
+    "latitude": 37.754,
+    "longitude": 26.978,
+    "city": "Samos",
+    "region": "North Aegean",
+    "country": "Greece",
 }
 
 
@@ -142,6 +167,11 @@ class WeatherAppTests(unittest.TestCase):
     def _reverse_route(route):
         route.fulfill(status=200, content_type="application/json", body=json.dumps(REVERSE_FIXTURE))
 
+    @staticmethod
+    def _delayed_district_route(route):
+        time.sleep(0.5)
+        route.continue_()
+
     def open_app(self):
         self.page.goto(BASE_URL, wait_until="networkidle", timeout=30000)
         self.page.wait_for_selector("#cityInput")
@@ -165,6 +195,7 @@ class WeatherAppTests(unittest.TestCase):
         self.assertEqual(query["longitude"][0], "27.8849")
         self.assertEqual(query["forecast_days"][0], "5")
         self.assertIn("is_day", query["hourly"][0])
+        self.assertIn("precipitation", query["hourly"][0])
         self.assertIn("uv_index", self.air_queries[-1]["current"][0])
         self.assertIn("Karesi / Balıkesir", self.page.locator(".current-location h2").inner_text())
         self.assertEqual(self.page.locator(".metric-card").count(), 9)
@@ -185,6 +216,80 @@ class WeatherAppTests(unittest.TestCase):
         self.assertEqual(self.page.locator(".hour-card").count(), 24)
         self.assertIn("16", self.page.locator("#hourlyChart").get_attribute("aria-label"))
         self.assertEqual(self.page.locator("#suggestions .suggestion-item").count(), 0)
+        self.assertEqual(self.page_errors, [])
+
+    def test_early_search_waits_for_the_local_district_index(self):
+        self.page.route("**/data/il-ilce-with-loc.json", self._delayed_district_route)
+        self.page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
+        self.page.wait_for_selector("#cityInput")
+        self.page.fill("#cityInput", "Karesi")
+        self.page.press("#cityInput", "Enter")
+        self.page.wait_for_selector(".current-card", timeout=15000)
+
+        self.assertTrue(self.forecast_queries)
+        query = self.forecast_queries[-1]
+        self.assertEqual(query["latitude"][0], "39.6609")
+        self.assertEqual(query["longitude"][0], "27.8849")
+        self.assertEqual(self.page_errors, [])
+
+    def test_data_provenance_and_forecast_alerts_are_explicit(self):
+        self.open_app()
+        self.search("Karesi")
+
+        metadata = self.page.locator(".forecast-meta").inner_text()
+        self.assertIn("Canlı veri", metadata)
+        self.assertIn("Open-Meteo", metadata)
+        self.assertIn("39,6609", metadata)
+        self.assertIn("Tahmin zamanı", metadata)
+        self.assertIn("Yüksek UV", self.page.locator(".alerts-panel").inner_text())
+        self.assertIn("resmî uyarı değildir", self.page.locator(".alerts-disclaimer").inner_text())
+        self.assertEqual(self.page.locator(".plan-card").count(), 3)
+        self.assertIn("PM2.5", self.page.locator(".air-details").inner_text())
+        self.assertEqual(self.page.locator("#hourlyTableBody tr").count(), 24)
+        self.assertIn(
+            "mgm.gov.tr/meteouyari",
+            self.page.locator(".alerts-disclaimer a").get_attribute("href"),
+        )
+        self.assertEqual(self.page_errors, [])
+
+    def test_saved_locations_can_be_compared_on_demand(self):
+        self.page.add_init_script("""
+            localStorage.setItem('weather_saved_v1', JSON.stringify([
+              {
+                id: 'karesi|balikesir', name: 'Karesi', admin1: 'Balikesir',
+                label: 'Karesi / Balikesir', latitude: 39.6609, longitude: 27.8849
+              },
+              {
+                id: 'kadikoy|istanbul', name: 'Kadikoy', admin1: 'Istanbul',
+                label: 'Kadikoy / Istanbul', latitude: 40.9917, longitude: 29.0277
+              }
+            ]));
+        """)
+        self.open_app()
+        self.page.click("#compareSavedBtn")
+        self.page.wait_for_selector("#comparisonResults:not([hidden])")
+        self.assertEqual(self.page.locator(".comparison-card").count(), 2)
+        self.assertEqual(self.page_errors, [])
+
+    def test_saved_location_can_be_default_and_loads_after_reload(self):
+        self.open_app()
+        self.search("Karesi")
+
+        self.page.click("#saveCurrentBtn")
+        self.assertEqual(self.page.locator("[data-saved-id]").count(), 1)
+        self.assertIn("Karesi", self.page.locator("[data-saved-id]").inner_text())
+        self.page.click("[data-default-id]")
+        self.assertEqual(
+            self.page.locator("[data-default-id]").get_attribute("aria-pressed"),
+            "true",
+        )
+
+        requests_before_reload = len(self.forecast_queries)
+        self.page.reload(wait_until="networkidle", timeout=30000)
+        self.page.wait_for_selector(".current-card", timeout=15000)
+        self.assertGreater(len(self.forecast_queries), requests_before_reload)
+        self.assertIn("Karesi / Balıkesir", self.page.locator(".current-location h2").inner_text())
+        self.assertEqual(self.page.locator(".weather-actions").count(), 0)
         self.assertEqual(self.page_errors, [])
 
     def test_turkish_title_case_handles_non_ascii_initials(self):
@@ -218,6 +323,7 @@ class WeatherAppTests(unittest.TestCase):
               unit: 'Kelvin', language: 'xx', theme: 'neon'
             }));
             localStorage.setItem('weather_recent_v2', JSON.stringify({broken: true}));
+            localStorage.setItem('weather_saved_v1', JSON.stringify([{broken: true}]));
             localStorage.setItem('weather_cache_v2', JSON.stringify([]));
             localStorage.setItem('weather_latest_v2', JSON.stringify({
               savedAt: '2026-06-15T10:00:00Z', payload: {broken: true}
@@ -305,7 +411,7 @@ class WeatherAppTests(unittest.TestCase):
         """)
         self.open_app()
         self.page.click("#locationBtn")
-        self.page.wait_for_selector("#notice:not([hidden])")
+        self.page.wait_for_selector("#notice.warning:not([hidden])")
         self.assertIn("yalnızca Türkiye", self.page.locator("#notice").inner_text())
         self.assertEqual(self.forecast_queries, [])
         self.assertTrue(self.page.locator("#locationBtn").is_enabled())
@@ -349,6 +455,45 @@ class WeatherAppTests(unittest.TestCase):
         self.assertTrue(self.page.locator("#locationBtn").is_enabled())
         self.assertEqual(self.page_errors, [])
 
+    def test_border_region_gps_outside_turkey_is_not_mapped_to_a_turkish_district(self):
+        self.context.close()
+        self.context = self.browser.new_context(locale="tr-TR", service_workers="block")
+        self.page = self.context.new_page()
+        self.page_errors = []
+        self.forecast_queries = []
+        self.air_queries = []
+        self.reverse_requests = []
+        self.page.on("pageerror", lambda error: self.page_errors.append(str(error)))
+        self.page.on("request", self._capture_request)
+        self.page.route("https://api.open-meteo.com/**", self._weather_route)
+        self.page.route("https://air-quality-api.open-meteo.com/**", self._air_route)
+        self.page.route(
+            "https://photon.komoot.io/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(FOREIGN_REVERSE_FIXTURE),
+            ),
+        )
+        self.page.add_init_script("""
+            Object.defineProperty(navigator, 'geolocation', {
+              configurable: true,
+              value: {
+                getCurrentPosition: success => success({
+                  coords: { latitude: 37.754, longitude: 26.978 }
+                })
+              }
+            });
+        """)
+        self.open_app()
+        self.page.click("#locationBtn")
+        self.page.wait_for_selector("#notice.warning:not([hidden])")
+        self.assertIn("yalnızca Türkiye", self.page.locator("#notice").inner_text())
+        self.assertEqual(len(self.reverse_requests), 1)
+        self.assertEqual(self.forecast_queries, [])
+        self.assertTrue(self.page.locator("#locationBtn").is_enabled())
+        self.assertEqual(self.page_errors, [])
+
     def test_ip_location_stays_city_level_and_is_marked_approximate(self):
         self.context.close()
         self.context = self.browser.new_context(locale="tr-TR", service_workers="block")
@@ -387,6 +532,42 @@ class WeatherAppTests(unittest.TestCase):
         query = self.forecast_queries[-1]
         self.assertEqual(query["latitude"][0], "41.01")
         self.assertEqual(query["longitude"][0], "28.97")
+        self.assertEqual(self.page_errors, [])
+
+    def test_ip_location_outside_turkey_is_rejected_even_inside_the_coordinate_bounds(self):
+        self.context.close()
+        self.context = self.browser.new_context(locale="tr-TR", service_workers="block")
+        self.page = self.context.new_page()
+        self.page_errors = []
+        self.forecast_queries = []
+        self.air_queries = []
+        self.ip_requests = []
+        self.page.on("pageerror", lambda error: self.page_errors.append(str(error)))
+        self.page.on("request", self._capture_request)
+        self.page.route("https://api.open-meteo.com/**", self._weather_route)
+        self.page.route("https://air-quality-api.open-meteo.com/**", self._air_route)
+        self.page.route(
+            "https://ipwho.is/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(FOREIGN_IP_FIXTURE),
+            ),
+        )
+        self.page.add_init_script("""
+            Object.defineProperty(navigator, 'geolocation', {
+              configurable: true,
+              value: { getCurrentPosition: (success, error) => error({ code: 1, PERMISSION_DENIED: 1 }) }
+            });
+        """)
+        self.open_app()
+        self.page.click("#locationBtn")
+        self.page.get_by_role("button", name="IP ile yaklaşık konumu bul").click()
+        self.page.click("#allowIpBtn")
+        self.page.wait_for_selector("#notice.error:not([hidden])")
+        self.assertEqual(len(self.ip_requests), 1)
+        self.assertEqual(self.forecast_queries, [])
+        self.assertTrue(self.page.locator("#locationBtn").is_enabled())
         self.assertEqual(self.page_errors, [])
 
     def test_api_failure_is_a_real_error_with_retry(self):

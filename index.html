@@ -11,14 +11,14 @@
   <meta property="og:title" content="Hava Durumu">
   <meta property="og:description" content="Türkiye için hızlı ve ayrıntılı hava tahminleri.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://nurettin-erdogan.github.io/weather-app/ss/2.png">
+  <meta property="og:image" content="https://nurettin-erdogan.github.io/weather-app/icons/icon-512.png">
   <meta name="application-name" content="Hava Durumu">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="canonical" href="https://nurettin-erdogan.github.io/weather-app/">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./style.css?v=20260622-1">
+  <link rel="stylesheet" href="./style.css?v=20260623-1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://ipwho.is; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 </head>
 <body>
@@ -29,6 +29,13 @@
   </div>
 
   <div id="offlineBanner" class="connection-banner" role="status" aria-live="polite" hidden></div>
+  <div id="updateBanner" class="connection-banner update-banner" role="status" aria-live="polite" hidden>
+    <span data-i18n="updateAvailable">Yeni sürüm hazır.</span>
+    <div class="banner-actions">
+      <button id="updateNowBtn" class="link-action" type="button" data-i18n="updateNow">Güncelle</button>
+      <button id="updateLaterBtn" class="link-action" type="button" data-i18n="later">Sonra</button>
+    </div>
+  </div>
 
   <main class="app-shell">
     <header class="app-header">
@@ -68,12 +75,50 @@
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
     </section>
 
+    <section id="savedSection" class="saved-section" hidden>
+      <div class="section-heading compact-heading">
+        <h2 data-i18n="savedLocations">Kayıtlı konumlar</h2>
+        <div class="section-actions">
+          <button id="compareSavedBtn" class="link-action" type="button" data-i18n="compareSaved" hidden>Karşılaştır</button>
+          <button id="saveCurrentBtn" class="link-action" type="button" data-i18n="saveCurrentLocation" hidden>Bu konumu kaydet</button>
+        </div>
+      </div>
+      <p id="savedEmpty" class="saved-empty" data-i18n="savedLocationsEmpty">Sık kullandığın konumları burada saklayabilirsin.</p>
+      <div id="savedList" class="saved-list"></div>
+      <div id="comparisonResults" class="comparison-results" aria-live="polite" hidden></div>
+    </section>
+
     <section id="recentSection" class="saved-section" hidden>
       <div class="section-heading compact-heading">
         <h2 data-i18n="recent">Son aramalar</h2>
         <button id="clearRecentBtn" class="link-action" type="button" data-i18n="clearRecent">Temizle</button>
       </div>
       <div id="recentList" class="chip-list"></div>
+    </section>
+
+    <section class="preference-section" aria-labelledby="alertSettingsHeading">
+      <details class="preference-card">
+        <summary id="alertSettingsHeading" data-i18n="alertSettings">Kişisel uyarı eşikleri</summary>
+        <p data-i18n="alertSettingsHint">Tahmin özetini sana göre ayarla. Tercihler yalnızca bu cihazda saklanır.</p>
+        <div class="threshold-grid">
+          <label for="rainThreshold">
+            <span data-i18n="rainThreshold">Yağış olasılığı</span>
+            <output id="rainThresholdValue" for="rainThreshold"></output>
+            <input id="rainThreshold" type="range" min="20" max="100" step="5" value="60">
+          </label>
+          <label for="windThreshold">
+            <span data-i18n="windThreshold">Rüzgâr hızı</span>
+            <output id="windThresholdValue" for="windThreshold"></output>
+            <input id="windThreshold" type="range" min="20" max="80" step="5" value="45">
+          </label>
+          <label for="uvThreshold">
+            <span data-i18n="uvThreshold">UV indeksi</span>
+            <output id="uvThresholdValue" for="uvThreshold"></output>
+            <input id="uvThreshold" type="range" min="3" max="11" step="1" value="7">
+          </label>
+        </div>
+        <button id="resetAlertSettingsBtn" class="link-action" type="button" data-i18n="resetAlertSettings">Varsayılanlara dön</button>
+      </details>
     </section>
 
     <section id="result" class="weather-result" aria-live="polite" aria-busy="false">
@@ -119,6 +164,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script type="module" src="./app.js?v=20260622-1"></script>
+  <script type="module" src="./app.js?v=20260623-1"></script>
 </body>
 </html>

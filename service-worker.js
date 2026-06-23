@@ -1,10 +1,10 @@
 const CACHE_PREFIX = 'weather-app-';
-const CACHE_VERSION = `${CACHE_PREFIX}v8-audit`;
+const CACHE_VERSION = `${CACHE_PREFIX}v10-planner`;
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css?v=20260622-1',
-  './app.js?v=20260622-1',
+  './style.css?v=20260623-1',
+  './app.js?v=20260623-1',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/icon-192.png',
@@ -17,11 +17,15 @@ const APP_SHELL = [
   './js/storage.js',
   './js/utils.js',
   './js/weather-codes.js',
+  './js/weather-alerts.js',
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

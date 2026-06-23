@@ -39,7 +39,8 @@ function forecastUrl(latitude, longitude) {
     ].join(','),
     hourly: [
       'temperature_2m', 'apparent_temperature', 'precipitation_probability',
-      'relative_humidity_2m', 'weather_code', 'is_day', 'wind_speed_10m',
+      'precipitation', 'relative_humidity_2m', 'weather_code', 'is_day',
+      'wind_speed_10m',
     ].join(','),
     daily: [
       'weather_code', 'temperature_2m_max', 'temperature_2m_min',
@@ -62,6 +63,16 @@ function airUrl(latitude, longitude) {
   return `${AIR_URL}?${params}`;
 }
 
+function weatherSummaryUrl(latitude, longitude) {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    current: 'temperature_2m,weather_code,is_day,wind_speed_10m,precipitation',
+    timezone: 'auto',
+  });
+  return `${FORECAST_URL}?${params}`;
+}
+
 export async function fetchWeatherBundle(latitude, longitude, signal) {
   if (!isTurkeyCoordinate(latitude, longitude)) throw new Error('Coordinate outside Türkiye');
   const [weather, airQuality] = await Promise.all([
@@ -69,6 +80,11 @@ export async function fetchWeatherBundle(latitude, longitude, signal) {
     requestJson(airUrl(latitude, longitude), { signal }).catch(() => null),
   ]);
   return { weather, airQuality };
+}
+
+export async function fetchWeatherSummary(latitude, longitude, signal) {
+  if (!isTurkeyCoordinate(latitude, longitude)) throw new Error('Coordinate outside TÃ¼rkiye');
+  return requestJson(weatherSummaryUrl(latitude, longitude), { signal, timeout: 10000 });
 }
 
 export async function searchRemoteLocation(query, language = 'tr', signal) {
@@ -107,7 +123,10 @@ export async function searchRemoteLocation(query, language = 'tr', signal) {
 
 export async function fetchApproximateIpLocation(signal) {
   const data = await requestJson('https://ipwho.is/', { signal, timeout: 10000 });
-  if (data.success === false || !isTurkeyCoordinate(data.latitude, data.longitude)) return null;
+  const countryCode = String(data.country_code || data.countryCode || '').toUpperCase();
+  const countryName = normalizeForSearch(data.country);
+  const isTurkey = countryCode === 'TR' || (!countryCode && ['turkiye', 'turkey'].includes(countryName));
+  if (data.success === false || !isTurkey || !isTurkeyCoordinate(data.latitude, data.longitude)) return null;
   return {
     latitude: Number(data.latitude),
     longitude: Number(data.longitude),
@@ -129,10 +148,7 @@ export async function reverseGeocodeLocation(latitude, longitude, language = 'tr
   const request = requestJson(`${REVERSE_URL}?${params}`, {
     signal,
     timeout: 8000,
-  }).then(data => {
-    const address = data?.features?.[0]?.properties;
-    return address?.countrycode === 'TR' ? address : null;
-  }).catch(error => {
+  }).then(data => data?.features?.[0]?.properties || null).catch(error => {
     reverseLocationCache.delete(key);
     throw error;
   });

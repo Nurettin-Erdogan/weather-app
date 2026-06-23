@@ -17,6 +17,10 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - Celsius/Fahrenheit seçimi
 - Klavye ok tuşlarıyla kullanılabilen erişilebilir sıcaklık birimi seçimi
 - Son aramaları cihazda saklama ve hızlı yeniden açma
+- En fazla sekiz kayıtlı konum, varsayılan konum seçimi ve açılışta otomatik yükleme
+- Hava kaynağı, alınma zamanı, tahmin zamanı ve kullanılan koordinatı gösteren veri bilgisi
+- Fırtına, kuvvetli yağış, kar, rüzgâr, sıcaklık, don, UV ve hava kalitesi için 24 saatlik otomatik risk özeti
+- Otomatik risk özetini resmî uyarıdan ayıran açıklama ve MGM uyarı bağlantısı
 - Açık/koyu tema ve Türkçe/İngilizce arayüz
 - GPS konumu ve açık onaylı yaklaşık IP konumu
 - GPS konumunu idari ilçe adına eşleyen OpenStreetMap ters konum çözümleme
@@ -24,6 +28,12 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - PWA kurulumu ve çevrimdışı son tahmin desteği
 - Açık sekmede, bağlantı geri geldiğinde ve uygulamaya dönüldüğünde sessiz otomatik yenileme
 - Mobil ve masaüstü erişilebilir arayüz
+- Yağış, rüzgâr ve UV tercihlerini kullanan kişisel uyarı eşikleri
+- Önümüzdeki 24 saat için dışarı planı, şemsiye ve hava kalitesi önerileri
+- Kayıtlı konumları isteğe bağlı, tek ekranda karşılaştırma
+- PM2.5 ve PM10 değerlerini içeren hava kalitesi ayrıntıları
+- Canvas grafiğine ek olarak açılabilir erişilebilir saatlik veri tablosu
+- Zorla yenilemek yerine kullanıcının onayıyla etkinleşen PWA güncellemesi
 
 ## Mahremiyet
 
@@ -31,7 +41,7 @@ Canlı sürüm: https://nurettin-erdogan.github.io/weather-app/
 - Yerel listede bulunamayan arama metni eşleştirme için Open-Meteo geocoding servisine gönderilir.
 - Konum izni reddedildiğinde IP servisi otomatik çağrılmaz.
 - Yaklaşık IP konumu için kullanıcıdan ayrıca açık onay alınır ve yalnızca `ipwho.is` kullanılır.
-- Tercihler, son aramalar ve son tahmin cihazdaki `localStorage` içinde tutulur.
+- Tercihler, kayıtlı konumlar, son aramalar ve son tahmin cihazdaki `localStorage` içinde tutulur.
 - Projede API anahtarı veya kullanıcı hesabı yoktur.
 - Uygulama üçüncü taraf isteklere sayfa adresini referrer olarak göndermez.
 
@@ -67,6 +77,9 @@ Test paketi şunları zorunlu kılar:
 - Bozuk yerel depolama verisinde güvenli varsayılanlara dönülmesi
 - Bozuk veya Türkiye dışı çevrimdışı hava önbelleğinin reddedilmesi
 - PWA önbellek sürümü ile HTML varlık sürümlerinin eşleşmesi
+- Veri kaynağı ve güncellik bilgilerinin görünür olması
+- Kayıtlı ve varsayılan konumun yeniden açılışta doğru yüklenmesi
+- Otomatik hava riski özetinin resmî uyarı olmadığını açıkça belirtmesi
 
 ## Veri Bakımı
 
@@ -110,6 +123,7 @@ weather-app/
 │   ├── search.js
 │   ├── storage.js
 │   ├── utils.js
+│   ├── weather-alerts.js
 │   └── weather-codes.js
 ├── data/il-ilce-with-loc.json
 ├── icons/
