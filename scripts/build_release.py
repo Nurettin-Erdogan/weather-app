@@ -36,6 +36,7 @@ FILES = [
     "js/i18n.js",
     "js/search.js",
     "js/storage.js",
+    "js/theme-init.js",
     "js/utils.js",
     "js/weather-alerts.js",
     "js/weather-codes.js",

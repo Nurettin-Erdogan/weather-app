@@ -1101,7 +1101,7 @@ async function registerServiceWorker() {
       if (state.updateRequested) location.reload();
     });
     state.serviceWorkerRegistration = await navigator.serviceWorker.register(
-      './service-worker.js?v=20260624-1',
+      './service-worker.js?v=20260624-2',
       { updateViaCache: 'none' },
     );
     const watchInstallingWorker = worker => {

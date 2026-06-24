@@ -1,10 +1,10 @@
 const CACHE_PREFIX = 'weather-app-';
-const CACHE_VERSION = `${CACHE_PREFIX}v11-release`;
+const CACHE_VERSION = `${CACHE_PREFIX}v12-theme-init`;
 const APP_SHELL = [
   './',
   './index.html',
   './style.css?v=20260623-1',
-  './app.js?v=20260624-1',
+  './app.js?v=20260624-2',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/icon-192.png',
@@ -15,6 +15,7 @@ const APP_SHELL = [
   './js/i18n.js',
   './js/search.js',
   './js/storage.js',
+  './js/theme-init.js?v=20260624-1',
   './js/utils.js',
   './js/weather-codes.js',
   './js/weather-alerts.js',

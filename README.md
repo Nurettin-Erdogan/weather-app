@@ -146,6 +146,7 @@ weather-app/
 │   ├── i18n.js
 │   ├── search.js
 │   ├── storage.js
+│   ├── theme-init.js
 │   ├── utils.js
 │   ├── weather-alerts.js
 │   └── weather-codes.js
