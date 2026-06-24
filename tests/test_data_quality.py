@@ -94,9 +94,9 @@ class StaticQualityTests(unittest.TestCase):
         index = INDEX_PATH.read_text(encoding="utf-8")
         service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")
         self.assertIn("style.css?v=20260623-1", index)
-        self.assertIn("app.js?v=20260623-1", index)
+        self.assertIn("app.js?v=20260624-1", index)
         self.assertIn("style.css?v=20260623-1", service_worker)
-        self.assertIn("app.js?v=20260623-1", service_worker)
+        self.assertIn("app.js?v=20260624-1", service_worker)
         self.assertIn("js/weather-alerts.js", service_worker)
 
     def test_service_worker_waits_for_user_requested_updates(self):

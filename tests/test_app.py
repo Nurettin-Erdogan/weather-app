@@ -494,6 +494,40 @@ class WeatherAppTests(unittest.TestCase):
         self.assertTrue(self.page.locator("#locationBtn").is_enabled())
         self.assertEqual(self.page_errors, [])
 
+    def test_reverse_geocode_failure_does_not_map_a_border_region_to_turkey(self):
+        self.context.close()
+        self.context = self.browser.new_context(locale="tr-TR", service_workers="block")
+        self.page = self.context.new_page()
+        self.page_errors = []
+        self.forecast_queries = []
+        self.air_queries = []
+        self.reverse_requests = []
+        self.page.on("pageerror", lambda error: self.page_errors.append(str(error)))
+        self.page.on("request", self._capture_request)
+        self.page.route("https://api.open-meteo.com/**", self._weather_route)
+        self.page.route("https://air-quality-api.open-meteo.com/**", self._air_route)
+        self.page.route(
+            "https://photon.komoot.io/**",
+            lambda route: route.fulfill(status=503, content_type="application/json", body='{}'),
+        )
+        self.page.add_init_script("""
+            Object.defineProperty(navigator, 'geolocation', {
+              configurable: true,
+              value: {
+                getCurrentPosition: success => success({
+                  coords: { latitude: 37.754, longitude: 26.978 }
+                })
+              }
+            });
+        """)
+        self.open_app()
+        self.page.click("#locationBtn")
+        self.page.wait_for_selector("#notice.error:not([hidden])")
+        self.assertEqual(len(self.reverse_requests), 1)
+        self.assertEqual(self.forecast_queries, [])
+        self.assertTrue(self.page.locator("#locationBtn").is_enabled())
+        self.assertEqual(self.page_errors, [])
+
     def test_ip_location_stays_city_level_and_is_marked_approximate(self):
         self.context.close()
         self.context = self.browser.new_context(locale="tr-TR", service_workers="block")

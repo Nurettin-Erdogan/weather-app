@@ -887,17 +887,23 @@ async function handleUseLocation() {
         showNotice(t('outsideTurkey'), 'warning');
         return;
       }
-      let resolved = null;
+      let address;
       try {
-        const address = await reverseGeocodeLocation(latitude, longitude, state.settings.language);
-        if (address?.countrycode && String(address.countrycode).toUpperCase() !== 'TR') {
-          showNotice(t('outsideTurkey'), 'warning');
-          return;
-        }
-        resolved = findDistrictByAddress(address, state.settings.language);
+        address = await reverseGeocodeLocation(latitude, longitude, state.settings.language);
       } catch {
-        // The local nearest-district fallback keeps GPS usable offline.
+        showNotice(t('locationUnavailable'), 'error');
+        return;
       }
+      const countryCode = String(address?.countrycode || '').trim().toUpperCase();
+      if (!countryCode) {
+        showNotice(t('locationUnavailable'), 'error');
+        return;
+      }
+      if (countryCode !== 'TR') {
+        showNotice(t('outsideTurkey'), 'warning');
+        return;
+      }
+      const resolved = findDistrictByAddress(address, state.settings.language);
       const location = resolved || nearest || {
         name: state.settings.language === 'tr' ? 'Konumum' : 'My location',
         admin1: '',
@@ -1095,7 +1101,7 @@ async function registerServiceWorker() {
       if (state.updateRequested) location.reload();
     });
     state.serviceWorkerRegistration = await navigator.serviceWorker.register(
-      './service-worker.js?v=20260623-1',
+      './service-worker.js?v=20260624-1',
       { updateViaCache: 'none' },
     );
     const watchInstallingWorker = worker => {

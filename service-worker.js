@@ -1,10 +1,10 @@
 const CACHE_PREFIX = 'weather-app-';
-const CACHE_VERSION = `${CACHE_PREFIX}v10-planner`;
+const CACHE_VERSION = `${CACHE_PREFIX}v11-release`;
 const APP_SHELL = [
   './',
   './index.html',
   './style.css?v=20260623-1',
-  './app.js?v=20260623-1',
+  './app.js?v=20260624-1',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/icon-192.png',

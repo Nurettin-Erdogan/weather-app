@@ -4,6 +4,11 @@
   <img src="docs/preview.svg" alt="Hava Durumu uygulamasının önizlemesi" width="760">
 </p>
 
+<p align="center">
+  <a href="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/ci.yml"><img src="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI durumu"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f766e.svg" alt="MIT Lisansı"></a>
+</p>
+
 Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
 
 <p align="center">
@@ -43,7 +48,7 @@ Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük plan
 - Açık/koyu tema ve Türkçe/İngilizce arayüz
 - GPS konumu ve açık onaylı yaklaşık IP konumu
 - GPS konumunu idari ilçe adına eşleyen OpenStreetMap ters konum çözümleme
-- Ters konum çevrimdışıyken yaklaşık ilçe rozeti ve şehir seviyesinde dürüst IP konumu
+- Ters konum doğrulamasıyla Türkiye dışındaki GPS konumlarını güvenle reddetme
 - PWA kurulumu ve çevrimdışı son tahmin desteği
 - Açık sekmede, bağlantı geri geldiğinde ve uygulamaya dönüldüğünde sessiz otomatik yenileme
 - Mobil ve masaüstü erişilebilir arayüz
@@ -77,7 +82,7 @@ Ardından `http://127.0.0.1:8000` adresini açın. Windows'ta `launch-local.bat`
 ## Testler
 
 ```bash
-python -m pip install playwright
+python -m pip install -r requirements-dev.txt
 python -m playwright install chromium
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
@@ -156,3 +161,7 @@ weather-app/
 - Hava kalitesi: Open-Meteo Air Quality API
 - GPS ters konum çözümleme: OpenStreetMap tabanlı Photon
 - Yerel koordinat temel kaynağı: BuNick Turkey Cities & Districts
+
+## Lisans
+
+Proje kaynak kodu [MIT Lisansı](LICENSE) ile lisanslanmıştır. `data/` içeriği ve kullanılan üçüncü taraf servisler kendi sağlayıcılarının koşullarına tabidir.

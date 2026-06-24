@@ -22,6 +22,7 @@ FILES = [
     "manifest.webmanifest",
     "service-worker.js",
     "README.md",
+    "LICENSE",
     "QUICKSTART.md",
     "run-local.bat",
     "run-local.sh",

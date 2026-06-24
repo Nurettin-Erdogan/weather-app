@@ -83,7 +83,7 @@ export async function fetchWeatherBundle(latitude, longitude, signal) {
 }
 
 export async function fetchWeatherSummary(latitude, longitude, signal) {
-  if (!isTurkeyCoordinate(latitude, longitude)) throw new Error('Coordinate outside TÃ¼rkiye');
+  if (!isTurkeyCoordinate(latitude, longitude)) throw new Error('Coordinate outside Türkiye');
   return requestJson(weatherSummaryUrl(latitude, longitude), { signal, timeout: 10000 });
 }
 
