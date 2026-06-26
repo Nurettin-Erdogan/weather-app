@@ -48,7 +48,7 @@ function forecastUrl(latitude, longitude) {
       'wind_speed_10m_max',
     ].join(','),
     timezone: 'auto',
-    forecast_days: '5',
+    forecast_days: '7',
   });
   return `${FORECAST_URL}?${params}`;
 }

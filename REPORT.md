@@ -76,7 +76,7 @@ Son güncelleme: 22 Haziran 2026
 
 ## Kullanılabilirlik Kararı
 
-- Günlük kullanım: Uygun. Konum, manuel arama, anlık/saatlik/5 günlük tahmin, hava kalitesi, tema, dil ve çevrimdışı son veri akışları doğrulandı.
+- Günlük kullanım: Uygun. Konum, manuel arama, anlık/saatlik/7 günlük tahmin, hava kalitesi, tema, dil ve çevrimdışı son veri akışları doğrulandı.
 - Mobil/PWA kullanımı: Uygun. 390 px görünümde taşma yok, uygulama kabuğu çevrimdışı açılıyor ve yeni sürüm cache anahtarıyla dağıtılabiliyor.
 - Konum doğruluğu: GPS + Photon idari eşleştirmesi ana yol; servis yoksa merkez mesafesi yalnız “Yaklaşık konum” rozetiyle yedek olarak kullanılıyor.
 - Kritik güvenlik kullanımı: Uygun değil. Bu uygulama resmî meteorolojik uyarı veya acil durum servisi değildir; Open-Meteo ve Photon erişimine bağımlıdır.

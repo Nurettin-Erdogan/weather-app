@@ -10,10 +10,10 @@ from playwright.sync_api import sync_playwright
 BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
 HOURLY_TIMES = [
     f"2026-06-{day:02d}T{hour:02d}:00"
-    for day in range(15, 20)
+    for day in range(15, 22)
     for hour in range(24)
 ]
-HOURLY_HOURS = [hour for _day in range(15, 20) for hour in range(24)]
+HOURLY_HOURS = [hour for _day in range(15, 22) for hour in range(24)]
 
 
 WEATHER_FIXTURE = {
@@ -47,15 +47,15 @@ WEATHER_FIXTURE = {
         "wind_speed_10m": [10] * len(HOURLY_TIMES),
     },
     "daily": {
-        "time": [f"2026-06-{day:02d}" for day in range(15, 20)],
-        "weather_code": [1, 2, 3, 61, 0],
-        "temperature_2m_max": [29, 30, 27, 24, 31],
-        "temperature_2m_min": [17, 18, 16, 15, 19],
-        "precipitation_probability_max": [0, 10, 20, 80, 0],
-        "sunrise": [f"2026-06-{day:02d}T05:39" for day in range(15, 20)],
-        "sunset": [f"2026-06-{day:02d}T20:36" for day in range(15, 20)],
-        "uv_index_max": [7.2, 7.5, 6.4, 4.1, 7.8],
-        "wind_speed_10m_max": [18, 20, 22, 25, 15],
+        "time": [f"2026-06-{day:02d}" for day in range(15, 22)],
+        "weather_code": [1, 2, 3, 61, 0, 45, 80],
+        "temperature_2m_max": [29, 30, 27, 24, 31, 28, 26],
+        "temperature_2m_min": [17, 18, 16, 15, 19, 18, 17],
+        "precipitation_probability_max": [0, 10, 20, 80, 0, 15, 45],
+        "sunrise": [f"2026-06-{day:02d}T05:39" for day in range(15, 22)],
+        "sunset": [f"2026-06-{day:02d}T20:36" for day in range(15, 22)],
+        "uv_index_max": [7.2, 7.5, 6.4, 4.1, 7.8, 6.9, 5.2],
+        "wind_speed_10m_max": [18, 20, 22, 25, 15, 17, 23],
     },
 }
 
@@ -193,7 +193,7 @@ class WeatherAppTests(unittest.TestCase):
         query = self.forecast_queries[-1]
         self.assertEqual(query["latitude"][0], "39.6609")
         self.assertEqual(query["longitude"][0], "27.8849")
-        self.assertEqual(query["forecast_days"][0], "5")
+        self.assertEqual(query["forecast_days"][0], "7")
         self.assertIn("is_day", query["hourly"][0])
         self.assertIn("precipitation", query["hourly"][0])
         self.assertIn("uv_index", self.air_queries[-1]["current"][0])
@@ -202,11 +202,11 @@ class WeatherAppTests(unittest.TestCase):
         uv_card = self.page.locator(".metric-card").filter(has_text="UV indeksi")
         self.assertIn("0,8", uv_card.inner_text())
         self.assertIn("Günlük en yüksek: 7,2", uv_card.inner_text())
-        self.assertEqual(self.page.locator(".day-card").count(), 5)
+        self.assertEqual(self.page.locator(".day-card").count(), 7)
         self.assertEqual(self.page.locator(".chart-legend span").count(), 2)
         self.assertEqual(
             self.page.locator(".forecast-section").nth(1).locator(".eyebrow").text_content(),
-            "5 gün",
+            "7 gün",
         )
         self.assertEqual(self.page.locator(".hour-card").count(), 24)
         self.assertEqual(self.page.locator(".day-card").first.get_attribute("aria-pressed"), "true")
@@ -290,6 +290,41 @@ class WeatherAppTests(unittest.TestCase):
         self.assertGreater(len(self.forecast_queries), requests_before_reload)
         self.assertIn("Karesi / Balıkesir", self.page.locator(".current-location h2").inner_text())
         self.assertEqual(self.page.locator(".weather-actions").count(), 0)
+        self.assertEqual(self.page_errors, [])
+
+    def test_last_location_is_remembered_and_restored_after_reload(self):
+        self.open_app()
+        self.search("Karesi")
+
+        stored = self.page.evaluate("JSON.parse(localStorage.getItem('weather_last_location_v1'))")
+        self.assertEqual(stored["id"], "karesi|balikesir")
+
+        requests_before_reload = len(self.forecast_queries)
+        self.page.reload(wait_until="networkidle", timeout=30000)
+        self.page.wait_for_selector(".current-card", timeout=15000)
+
+        self.assertIn("Karesi / Balıkesir", self.page.locator(".current-location h2").inner_text())
+        self.assertGreater(len(self.forecast_queries), requests_before_reload)
+        self.assertEqual(self.page_errors, [])
+
+    def test_install_prompt_shows_dismissible_install_card(self):
+        self.open_app()
+        self.page.evaluate("""
+            () => {
+              const event = new Event('beforeinstallprompt', { cancelable: true });
+              event.prompt = () => Promise.resolve();
+              event.userChoice = Promise.resolve({ outcome: 'dismissed' });
+              window.dispatchEvent(event);
+            }
+        """)
+        self.page.wait_for_selector("#installCard:not([hidden])")
+        self.assertTrue(self.page.locator("#installBtn").is_visible())
+
+        self.page.click("#installDismissBtn")
+        self.assertTrue(self.page.locator("#installCard").is_hidden())
+        self.assertTrue(self.page.evaluate("""
+            JSON.parse(localStorage.getItem('weather_settings_v2')).installHintDismissed
+        """))
         self.assertEqual(self.page_errors, [])
 
     def test_turkish_title_case_handles_non_ascii_initials(self):

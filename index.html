@@ -4,22 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Hava Durumu | Türkiye İl ve İlçe Tahminleri</title>
-  <meta name="description" content="Türkiye il ve ilçeleri için anlık hava durumu, saatlik grafikler, 5 günlük tahmin, hava kalitesi ve yağmur uyarıları.">
+  <meta name="description" content="Türkiye il ve ilçeleri için anlık hava durumu, saatlik grafikler, 7 günlük tahmin, hava kalitesi, PWA kurulum ve çevrimdışı son tahmin desteği.">
   <meta name="theme-color" content="#0f766e">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
   <meta property="og:title" content="Hava Durumu">
-  <meta property="og:description" content="Türkiye için hızlı ve ayrıntılı hava tahminleri.">
+  <meta property="og:description" content="Türkiye için hızlı, ayrıntılı ve gizlilik odaklı hava tahminleri.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://nurettin-erdogan.github.io/weather-app/icons/icon-512.png">
+  <meta property="og:image" content="https://nurettin-erdogan.github.io/weather-app/docs/preview.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hava Durumu">
+  <meta name="twitter:description" content="Türkiye için 7 günlük, saatlik ve çevrimdışı destekli hava tahmini PWA'sı.">
+  <meta name="twitter:image" content="https://nurettin-erdogan.github.io/weather-app/docs/preview.svg">
   <meta name="application-name" content="Hava Durumu">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="canonical" href="https://nurettin-erdogan.github.io/weather-app/">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <script src="./js/theme-init.js?v=20260624-1"></script>
-  <link rel="stylesheet" href="./style.css?v=20260623-1">
+  <script src="./js/theme-init.js?v=20260625-1"></script>
+  <link rel="stylesheet" href="./style.css?v=20260625-1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://ipwho.is; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 </head>
 <body>
@@ -74,6 +78,18 @@
         </div>
       </div>
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <aside id="installCard" class="install-card" aria-labelledby="installCardTitle" hidden>
+        <span class="install-card-icon" aria-hidden="true">▣</span>
+        <div>
+          <strong id="installCardTitle" data-i18n="installCardTitle">Uygulamayı ana ekrana ekle</strong>
+          <p data-i18n="installCardBody">Daha hızlı açılır, tam ekran çalışır ve son tahmini çevrimdışıyken de gösterebilir.</p>
+        </div>
+        <div class="install-card-actions">
+          <button id="installCardBtn" class="primary-button" type="button" data-i18n="install">Uygulamayı yükle</button>
+          <button id="installDismissBtn" class="link-action" type="button" data-i18n="later">Sonra</button>
+        </div>
+      </aside>
     </section>
 
     <section id="savedSection" class="saved-section" hidden>
@@ -165,6 +181,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script type="module" src="./app.js?v=20260624-2"></script>
+  <script type="module" src="./app.js?v=20260625-1"></script>
 </body>
 </html>

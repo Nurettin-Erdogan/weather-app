@@ -2,15 +2,15 @@ import {
   fetchApproximateIpLocation, fetchWeatherBundle, fetchWeatherSummary, reverseGeocodeLocation,
   searchRemoteLocation,
 } from './js/api.js';
-import { drawHourlyChart } from './js/chart.js';
 import { translate } from './js/i18n.js';
 import {
   findDistrict, findDistrictByAddress, hasAmbiguousDistrictName, loadDistrictIndex,
   nearestDistrict, searchDistricts,
 } from './js/search.js';
 import {
-  addRecent, addSavedLocation, clearRecent, defaultAlertPreferences, getLatestWeatherCache, getRecent,
-  getSavedLocations, getSettings, getWeatherCache, removeSavedLocation,
+  addRecent, addSavedLocation, clearRecent, defaultAlertPreferences, getLastLocation,
+  getLatestWeatherCache, getRecent, getSavedLocations, getSettings, getWeatherCache,
+  removeSavedLocation, saveLastLocation,
   saveSettings, saveWeatherCache,
 } from './js/storage.js';
 import {
@@ -31,7 +31,10 @@ const elements = Object.fromEntries([
   'helpDialog', 'toast', 'compareSavedBtn', 'comparisonResults', 'rainThreshold',
   'windThreshold', 'uvThreshold', 'rainThresholdValue', 'windThresholdValue',
   'uvThresholdValue', 'resetAlertSettingsBtn', 'updateBanner', 'updateNowBtn', 'updateLaterBtn',
+  'installCard', 'installCardBtn', 'installDismissBtn',
 ].map(id => [id, document.getElementById(id)]));
+
+let chartModulePromise = null;
 
 const state = {
   settings: getSettings(),
@@ -56,6 +59,16 @@ const state = {
 };
 
 const t = (key, variables) => translate(state.settings.language, key, variables);
+
+function drawHourlyChartLazy(canvas, hourly, unit, theme) {
+  if (!canvas) return;
+  chartModulePromise ??= import('./js/chart.js');
+  chartModulePromise
+    .then(({ drawHourlyChart }) => drawHourlyChart(canvas, hourly, unit, theme))
+    .catch(() => {
+      // The hourly table and cards remain available if canvas drawing fails.
+    });
+}
 
 function updateTranslations() {
   document.documentElement.lang = state.settings.language;
@@ -114,6 +127,7 @@ function applySettings() {
   elements.unitFBtn.classList.toggle('active', state.settings.unit === 'F');
   updateAlertPreferenceControls();
   updateTranslations();
+  updateInstallCard();
   if (state.currentBundle) renderWeather();
   renderSavedLocations();
   renderRecentLocations();
@@ -131,9 +145,15 @@ function setLoading(loading) {
   [elements.searchBtn, elements.locationBtn].forEach(button => { button.disabled = loading; });
   if (loading) {
     elements.result.innerHTML = `
-      <div class="loading-state" role="status">
+      <div class="loading-state skeleton-state" role="status">
         <span class="loader" aria-hidden="true"></span>
         <strong>${escapeHtml(t('loading'))}</strong>
+        <div class="skeleton-card" aria-hidden="true">
+          <span></span>
+          <b></b>
+          <i></i>
+          <i></i>
+        </div>
       </div>`;
   }
 }
@@ -170,6 +190,18 @@ function showNotice(message = '', type = 'info', actions = []) {
     button.addEventListener('click', action.callback);
     elements.notice.append(button);
   }
+}
+
+function updateInstallCard() {
+  const visible = Boolean(state.installPrompt && !state.settings.installHintDismissed);
+  if (elements.installCard) elements.installCard.hidden = !visible;
+  elements.installBtn.hidden = !state.installPrompt;
+}
+
+function dismissInstallCard() {
+  state.settings.installHintDismissed = true;
+  saveSettings(state.settings);
+  updateInstallCard();
 }
 
 function renderError(message, retryAction = null) {
@@ -457,6 +489,23 @@ async function handleSearch() {
   await openWeather(location);
 }
 
+function showCachedWeather(cached, options = {}) {
+  if (!cached?.payload) return false;
+  state.currentLocation = cached.payload.location;
+  state.currentBundle = cached.payload.bundle;
+  state.currentFetchedAt = Date.parse(cached.savedAt) || 0;
+  state.currentIsCached = true;
+  elements.cityInput.value = state.currentLocation.label;
+  saveLastLocation(state.currentLocation);
+  renderWeather();
+  renderSavedLocations();
+  renderRecentLocations();
+  if (options.notice !== false) {
+    showNotice(t('cached', { time: formatLocalTime(cached.savedAt, state.settings.language) }), 'warning');
+  }
+  return true;
+}
+
 async function openWeather(location, options = {}) {
   const safeLocation = normalizedLocation(location);
   state.requestController?.abort();
@@ -474,6 +523,7 @@ async function openWeather(location, options = {}) {
     state.currentIsCached = false;
     renderSuggestions([], '');
     saveWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude), { location: safeLocation, bundle });
+    saveLastLocation(safeLocation);
     if (options.addToRecent !== false) addRecent(safeLocation);
     renderWeather();
     renderSavedLocations();
@@ -482,13 +532,7 @@ async function openWeather(location, options = {}) {
     if (error.name === 'AbortError') return;
     const cached = getWeatherCache(cacheKey(safeLocation.latitude, safeLocation.longitude));
     if (cached?.payload) {
-      state.currentLocation = cached.payload.location;
-      state.currentBundle = cached.payload.bundle;
-      state.currentFetchedAt = Date.parse(cached.savedAt) || 0;
-      state.currentIsCached = true;
-      renderWeather();
-      renderSavedLocations();
-      showNotice(t('cached', { time: formatLocalTime(cached.savedAt, state.settings.language) }), 'warning');
+      showCachedWeather(cached);
     } else if (!options.silent) {
       renderError(t('dataError'), () => openWeather(safeLocation, options));
     }
@@ -686,6 +730,35 @@ function renderAirQualityDetails(airQuality, language) {
   </section>`;
 }
 
+function renderTodayHighlights(weather, language, unit) {
+  const daily = weather.daily || {};
+  const hourly = weather.hourly || {};
+  const indexes = nextHourlyIndexes(weather);
+  const rainPeak = Math.max(0, ...indexes.map(index => Number(hourly.precipitation_probability?.[index]) || 0));
+  const windPeak = Math.max(0, ...indexes.map(index => Number(hourly.wind_speed_10m?.[index]) || 0));
+  const firstSunrise = daily.sunrise?.[0] ? formatHour(daily.sunrise[0]) : '—';
+  const firstSunset = daily.sunset?.[0] ? formatHour(daily.sunset[0]) : '—';
+
+  return `<section class="today-strip" aria-label="${escapeHtml(t('todayHighlights'))}">
+    <article>
+      <span>${escapeHtml(t('todayRange'))}</span>
+      <strong>${escapeHtml(formatTemperature(daily.temperature_2m_max?.[0], unit))} / ${escapeHtml(formatTemperature(daily.temperature_2m_min?.[0], unit))}</strong>
+    </article>
+    <article>
+      <span>${escapeHtml(t('peakRain'))}</span>
+      <strong>${escapeHtml(formatPercentage(rainPeak, language))}</strong>
+    </article>
+    <article>
+      <span>${escapeHtml(t('peakWind'))}</span>
+      <strong>${escapeHtml(formatDecimal(windPeak, language))} km/h</strong>
+    </article>
+    <article>
+      <span>${escapeHtml(t('sunWindow'))}</span>
+      <strong>${escapeHtml(firstSunrise)} – ${escapeHtml(firstSunset)}</strong>
+    </article>
+  </section>`;
+}
+
 function renderWeather() {
   const { weather, airQuality } = state.currentBundle;
   const current = weather.current || {};
@@ -729,6 +802,8 @@ function renderWeather() {
         </div>
       </div>
     </section>
+
+    ${renderTodayHighlights(weather, language, unit)}
 
     <section class="forecast-meta" aria-label="${escapeHtml(t('dataInformation'))}">
       <div class="meta-main">
@@ -800,6 +875,7 @@ function renderWeather() {
             <span class="day-icon" aria-hidden="true">${weatherIcon(daily.weather_code?.[index], 1)}</span>
             <span><b>${escapeHtml(formatTemperature(daily.temperature_2m_max?.[index], unit))}</b> / ${escapeHtml(formatTemperature(daily.temperature_2m_min?.[index], unit))}</span>
             <small>${escapeHtml(t('probability'))} ${escapeHtml(formatPercentage(daily.precipitation_probability_max?.[index] ?? 0, language))}</small>
+            <small>${escapeHtml(t('wind'))} ${escapeHtml(formatDecimal(daily.wind_speed_10m_max?.[index], language))} km/h · UV ${escapeHtml(formatDecimal(daily.uv_index_max?.[index], language, 0))}</small>
           </button>`).join('')}
       </div>
     </section>`;
@@ -825,7 +901,7 @@ function renderHourlySelection(date) {
   const canvas = document.getElementById('hourlyChart');
   const label = `${t('hourly')}: ${formatDay(date, state.settings.language)}`;
   canvas?.setAttribute('aria-label', label);
-  drawHourlyChart(
+  drawHourlyChartLazy(
     canvas,
     hourlyDataForDate(weather, date),
     state.settings.unit,
@@ -967,12 +1043,40 @@ async function useApproximateIpLocation() {
   }
 }
 
+function defaultSavedLocation() {
+  return getSavedLocations().find(item => item.id === state.settings.defaultLocationId) || null;
+}
+
+function cachedEntryForLocation(location) {
+  return location ? getWeatherCache(cacheKey(location.latitude, location.longitude)) : null;
+}
+
+function preferredCachedWeather() {
+  const defaultLocation = defaultSavedLocation();
+  const lastLocation = getLastLocation();
+  return cachedEntryForLocation(defaultLocation)
+    || cachedEntryForLocation(lastLocation)
+    || getLatestWeatherCache();
+}
+
 function updateConnectionStatus() {
   if (!navigator.onLine) {
-    elements.offlineBanner.textContent = t('offline');
+    const cached = preferredCachedWeather();
+    const text = document.createElement('span');
+    text.textContent = cached ? t('offline') : t('offlineNoCache');
+    elements.offlineBanner.replaceChildren(text);
+    if (cached) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'link-action';
+      button.textContent = t('showSavedForecast');
+      button.addEventListener('click', () => showCachedWeather(cached));
+      elements.offlineBanner.append(button);
+    }
     elements.offlineBanner.hidden = false;
   } else {
     elements.offlineBanner.hidden = true;
+    elements.offlineBanner.replaceChildren();
   }
 }
 
@@ -996,7 +1100,7 @@ async function installApp() {
   await state.installPrompt.prompt();
   await state.installPrompt.userChoice;
   state.installPrompt = null;
-  elements.installBtn.hidden = true;
+  updateInstallCard();
 }
 
 function showUpdateBanner(worker) {
@@ -1075,6 +1179,8 @@ function bindEvents() {
   elements.helpBtn.addEventListener('click', () => elements.helpDialog.showModal());
   elements.allowIpBtn.addEventListener('click', useApproximateIpLocation);
   elements.installBtn.addEventListener('click', installApp);
+  elements.installCardBtn?.addEventListener('click', installApp);
+  elements.installDismissBtn?.addEventListener('click', dismissInstallCard);
   elements.updateNowBtn.addEventListener('click', requestAppUpdate);
   elements.updateLaterBtn.addEventListener('click', () => { elements.updateBanner.hidden = true; });
   window.addEventListener('online', () => {
@@ -1087,7 +1193,12 @@ function bindEvents() {
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     state.installPrompt = event;
-    elements.installBtn.hidden = false;
+    updateInstallCard();
+  });
+  window.addEventListener('appinstalled', () => {
+    state.installPrompt = null;
+    updateInstallCard();
+    showToast(t('installed'));
   });
   document.addEventListener('click', event => {
     if (!elements.suggestions.contains(event.target) && event.target !== elements.cityInput) renderSuggestions([], '');
@@ -1101,7 +1212,7 @@ async function registerServiceWorker() {
       if (state.updateRequested) location.reload();
     });
     state.serviceWorkerRegistration = await navigator.serviceWorker.register(
-      './service-worker.js?v=20260624-2',
+      './service-worker.js?v=20260625-1',
       { updateViaCache: 'none' },
     );
     const watchInstallingWorker = worker => {
@@ -1126,29 +1237,23 @@ async function registerServiceWorker() {
 
 async function restoreInitialWeather() {
   const locationAction = new URLSearchParams(location.search).get('action') === 'location';
-  const defaultLocation = getSavedLocations()
-    .find(item => item.id === state.settings.defaultLocationId);
+  const defaultLocation = defaultSavedLocation();
+  const lastLocation = getLastLocation();
+  const preferredLocation = defaultLocation || lastLocation;
+  const preferredCache = cachedEntryForLocation(preferredLocation);
 
   if (locationAction) {
     handleUseLocation();
-  } else if (navigator.onLine && defaultLocation) {
-    elements.cityInput.value = defaultLocation.label;
-    await openWeather(defaultLocation, { addToRecent: false });
-  } else if (!navigator.onLine) {
-    const defaultCache = defaultLocation
-      ? getWeatherCache(cacheKey(defaultLocation.latitude, defaultLocation.longitude))
-      : null;
-    const cached = defaultCache || getLatestWeatherCache();
-    if (cached?.payload) {
-      state.currentLocation = cached.payload.location;
-      state.currentBundle = cached.payload.bundle;
-      state.currentFetchedAt = Date.parse(cached.savedAt) || 0;
-      state.currentIsCached = true;
-      elements.cityInput.value = state.currentLocation.label;
-      renderWeather();
-      renderSavedLocations();
-      showNotice(t('cached', { time: formatLocalTime(cached.savedAt, state.settings.language) }), 'warning');
+  } else if (preferredCache?.payload) {
+    showCachedWeather(preferredCache, { notice: !navigator.onLine });
+    if (navigator.onLine && preferredLocation) {
+      openWeather(preferredLocation, { addToRecent: false, silent: true });
     }
+  } else if (navigator.onLine && preferredLocation) {
+    elements.cityInput.value = preferredLocation.label;
+    await openWeather(preferredLocation, { addToRecent: false });
+  } else if (!navigator.onLine) {
+    showCachedWeather(getLatestWeatherCache());
   }
 }
 
