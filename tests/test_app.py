@@ -244,6 +244,7 @@ class WeatherAppTests(unittest.TestCase):
         self.assertIn("Yüksek UV", self.page.locator(".alerts-panel").inner_text())
         self.assertIn("resmî uyarı değildir", self.page.locator(".alerts-disclaimer").inner_text())
         self.assertEqual(self.page.locator(".plan-card").count(), 3)
+        self.page.locator(".air-details").scroll_into_view_if_needed()
         self.assertIn("PM2.5", self.page.locator(".air-details").inner_text())
         self.assertEqual(self.page.locator("#hourlyTableBody tr").count(), 24)
         self.assertIn(
