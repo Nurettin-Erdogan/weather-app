@@ -706,6 +706,14 @@ class WeatherAppTests(unittest.TestCase):
         self.page.reload(wait_until="networkidle", timeout=30000)
         self.assertTrue(self.page.evaluate("Boolean(navigator.serviceWorker.controller)"))
         self.context.set_offline(True)
+        # Playwright 1.62 can block requests without updating navigator.onLine
+        # in a service-worker-controlled page, so make the browser signal explicit.
+        self.page.add_init_script("""
+            Object.defineProperty(Navigator.prototype, 'onLine', {
+              configurable: true,
+              get: () => false,
+            });
+        """)
         self.page.reload(wait_until="domcontentloaded", timeout=30000)
         self.page.wait_for_selector("#offlineBanner:not([hidden])")
         self.assertTrue(self.page.locator("#cityInput").is_visible())
