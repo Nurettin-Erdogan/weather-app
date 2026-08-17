@@ -1,12 +1,13 @@
 const CACHE_PREFIX = 'weather-app-';
-const CACHE_VERSION = `${CACHE_PREFIX}v10-planner`;
+const CACHE_VERSION = `${CACHE_PREFIX}v13-product-polish`;
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css?v=20260623-1',
-  './app.js?v=20260623-1',
+  './style.css?v=20260625-1',
+  './app.js?v=20260625-1',
   './manifest.webmanifest',
   './favicon.svg',
+  './docs/preview.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './data/il-ilce-with-loc.json',
@@ -15,6 +16,7 @@ const APP_SHELL = [
   './js/i18n.js',
   './js/search.js',
   './js/storage.js',
+  './js/theme-init.js?v=20260625-1',
   './js/utils.js',
   './js/weather-codes.js',
   './js/weather-alerts.js',

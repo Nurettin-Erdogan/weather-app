@@ -48,7 +48,7 @@ function forecastUrl(latitude, longitude) {
       'wind_speed_10m_max',
     ].join(','),
     timezone: 'auto',
-    forecast_days: '5',
+    forecast_days: '7',
   });
   return `${FORECAST_URL}?${params}`;
 }
@@ -83,7 +83,7 @@ export async function fetchWeatherBundle(latitude, longitude, signal) {
 }
 
 export async function fetchWeatherSummary(latitude, longitude, signal) {
-  if (!isTurkeyCoordinate(latitude, longitude)) throw new Error('Coordinate outside TÃ¼rkiye');
+  if (!isTurkeyCoordinate(latitude, longitude)) throw new Error('Coordinate outside Türkiye');
   return requestJson(weatherSummaryUrl(latitude, longitude), { signal, timeout: 10000 });
 }
 

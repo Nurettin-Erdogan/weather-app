@@ -4,6 +4,7 @@ const KEYS = {
   saved: 'weather_saved_v1',
   cache: 'weather_cache_v2',
   latest: 'weather_latest_v2',
+  lastLocation: 'weather_last_location_v1',
 };
 
 function read(key, fallback) {
@@ -48,6 +49,7 @@ export function getSettings() {
     unit: ['C', 'F'].includes(stored?.unit) ? stored.unit : 'C',
     language: ['tr', 'en'].includes(stored?.language) ? stored.language : 'tr',
     theme: ['system', 'light', 'dark'].includes(stored?.theme) ? stored.theme : 'system',
+    installHintDismissed: stored?.installHintDismissed === true,
     defaultLocationId: typeof stored?.defaultLocationId === 'string'
       ? stored.defaultLocationId
       : null,
@@ -114,6 +116,15 @@ export function removeSavedLocation(id) {
   const saved = getSavedLocations().filter(item => item.id !== id);
   write(KEYS.saved, saved);
   return saved;
+}
+
+export function saveLastLocation(location) {
+  if (validLocation(location)) write(KEYS.lastLocation, location);
+}
+
+export function getLastLocation() {
+  const location = read(KEYS.lastLocation, null);
+  return validLocation(location) ? location : null;
 }
 
 export function saveWeatherCache(key, payload) {

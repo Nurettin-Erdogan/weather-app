@@ -4,7 +4,12 @@
   <img src="docs/preview.svg" alt="Hava Durumu uygulamasının önizlemesi" width="760">
 </p>
 
-Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
+<p align="center">
+  <a href="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/ci.yml"><img src="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI durumu"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f766e.svg" alt="MIT Lisansı"></a>
+</p>
+
+Türkiye'deki il ve ilçeler için anlık tahmin, 7 günlük görünüm, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
 
 <p align="center">
   <a href="https://nurettin-erdogan.github.io/weather-app/"><strong>Canlı demoyu aç →</strong></a>
@@ -32,10 +37,10 @@ Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük plan
 - Avrupa Hava Kalitesi İndeksi, anlık UV, günlük maksimum UV, gün doğumu ve gün batımı
 - 24 saatlik sıcaklık/yağış grafiği ve saatlik kartlar
 - Gün seçimiyle birlikte güncellenen saatlik grafik ve kartlar
-- 5 günlük tahmin
+- 7 günlük tahmin; günlük kartlarda yağış, rüzgâr ve UV özeti
 - Celsius/Fahrenheit seçimi
 - Klavye ok tuşlarıyla kullanılabilen erişilebilir sıcaklık birimi seçimi
-- Son aramaları cihazda saklama ve hızlı yeniden açma
+- Son aramaları ve son açılan konumu cihazda saklama; açılışta hızlı geri yükleme
 - En fazla sekiz kayıtlı konum, varsayılan konum seçimi ve açılışta otomatik yükleme
 - Hava kaynağı, alınma zamanı, tahmin zamanı ve kullanılan koordinatı gösteren veri bilgisi
 - Fırtına, kuvvetli yağış, kar, rüzgâr, sıcaklık, don, UV ve hava kalitesi için 24 saatlik otomatik risk özeti
@@ -43,8 +48,8 @@ Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük plan
 - Açık/koyu tema ve Türkçe/İngilizce arayüz
 - GPS konumu ve açık onaylı yaklaşık IP konumu
 - GPS konumunu idari ilçe adına eşleyen OpenStreetMap ters konum çözümleme
-- Ters konum çevrimdışıyken yaklaşık ilçe rozeti ve şehir seviyesinde dürüst IP konumu
-- PWA kurulumu ve çevrimdışı son tahmin desteği
+- Ters konum doğrulamasıyla Türkiye dışındaki GPS konumlarını güvenle reddetme
+- Açıklamalı PWA kurulum kartı ve çevrimdışı son tahmini tek tıkla açma
 - Açık sekmede, bağlantı geri geldiğinde ve uygulamaya dönüldüğünde sessiz otomatik yenileme
 - Mobil ve masaüstü erişilebilir arayüz
 - Yağış, rüzgâr ve UV tercihlerini kullanan kişisel uyarı eşikleri
@@ -53,6 +58,7 @@ Türkiye'deki il ve ilçeler için anlık tahmin, hava kalitesi ve günlük plan
 - PM2.5 ve PM10 değerlerini içeren hava kalitesi ayrıntıları
 - Canvas grafiğine ek olarak açılabilir erişilebilir saatlik veri tablosu
 - Zorla yenilemek yerine kullanıcının onayıyla etkinleşen PWA güncellemesi
+- İlk açılışı hafifleten geç tema önleme, lazy grafik yükleme ve skeleton yükleme durumu
 
 ## Veri ve gizlilik
 
@@ -77,7 +83,7 @@ Ardından `http://127.0.0.1:8000` adresini açın. Windows'ta `launch-local.bat`
 ## Testler
 
 ```bash
-python -m pip install playwright
+python -m pip install -r requirements-dev.txt
 python -m playwright install chromium
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
@@ -98,6 +104,8 @@ Test paketi şunları zorunlu kılar:
 - PWA önbellek sürümü ile HTML varlık sürümlerinin eşleşmesi
 - Veri kaynağı ve güncellik bilgilerinin görünür olması
 - Kayıtlı ve varsayılan konumun yeniden açılışta doğru yüklenmesi
+- Son açılan konumun yeniden açılışta geri yüklenmesi
+- Kurulum kartının görünüp kapatılabilmesi
 - Otomatik hava riski özetinin resmî uyarı olmadığını açıkça belirtmesi
 
 ## Veri Bakımı
@@ -135,16 +143,19 @@ weather-app/
 ├── app.js
 ├── service-worker.js
 ├── manifest.webmanifest
+├── CHANGELOG.md
 ├── js/
 │   ├── api.js
 │   ├── chart.js
 │   ├── i18n.js
 │   ├── search.js
 │   ├── storage.js
+│   ├── theme-init.js
 │   ├── utils.js
 │   ├── weather-alerts.js
 │   └── weather-codes.js
 ├── data/il-ilce-with-loc.json
+├── docs/preview.svg
 ├── icons/
 ├── scripts/
 └── tests/
@@ -156,3 +167,7 @@ weather-app/
 - Hava kalitesi: Open-Meteo Air Quality API
 - GPS ters konum çözümleme: OpenStreetMap tabanlı Photon
 - Yerel koordinat temel kaynağı: BuNick Turkey Cities & Districts
+
+## Lisans
+
+Proje kaynak kodu [MIT Lisansı](LICENSE) ile lisanslanmıştır. `data/` içeriği ve kullanılan üçüncü taraf servisler kendi sağlayıcılarının koşullarına tabidir.
