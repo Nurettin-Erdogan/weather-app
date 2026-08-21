@@ -11,6 +11,17 @@
 
 Türkiye'deki il ve ilçeler için anlık tahmin, 7 günlük görünüm, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
 
+## Portföy özeti
+
+| | |
+| --- | --- |
+| **Problem** | Türkiye'de ilçe düzeyinde hava verisini hızlı, anlaşılır ve gizlilik tercihlerine saygılı biçimde sunmak |
+| **Çözüm** | API anahtarı gerektirmeyen, kurulabilir, çevrimdışı son tahmini açabilen ve 973 ilçeyi destekleyen PWA |
+| **Zor mühendislik kararları** | Koordinat veri kalitesi, izinli konum akışları, bozuk önbellekten güvenli dönüş ve erişilebilir etkileşimler |
+| **Doğrulama** | 31 otomatik test, Playwright tarayıcı senaryoları ve GitHub Pages üzerinde çalışan canlı demo |
+
+Bu proje; dış API entegrasyonu, veri doğrulama, PWA yaşam döngüsü, erişilebilirlik ve gizliliği birlikte ele alan üretim odaklı bir ön yüz geliştirebildiğimi gösterir.
+
 <p align="center">
   <a href="https://nurettin-erdogan.github.io/weather-app/"><strong>Canlı demoyu aç →</strong></a>
   &nbsp;·&nbsp;
