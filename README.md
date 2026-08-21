@@ -25,6 +25,8 @@ Bu proje; dış API entegrasyonu, veri doğrulama, PWA yaşam döngüsü, erişi
 <p align="center">
   <a href="https://nurettin-erdogan.github.io/weather-app/"><strong>Canlı demoyu aç →</strong></a>
   &nbsp;·&nbsp;
+  <a href="docs/demo-guide.md"><strong>3 dakikalık demo</strong></a>
+  &nbsp;·&nbsp;
   <a href="#testler">Testler</a>
   &nbsp;·&nbsp;
   <a href="#veri-ve-gizlilik">Gizlilik</a>
