@@ -1,7 +1,7 @@
 # Hava Durumu
 
 <p align="center">
-  <img src="docs/preview.svg" alt="Hava Durumu uygulamasının önizlemesi" width="760">
+  <img src="docs/screenshots/kadikoy-forecast.jpg" alt="Kadıköy için canlı hava tahmini ekranı" width="900">
 </p>
 
 <p align="center">
@@ -168,7 +168,7 @@ weather-app/
 │   ├── weather-alerts.js
 │   └── weather-codes.js
 ├── data/il-ilce-with-loc.json
-├── docs/preview.svg
+├── docs/screenshots/kadikoy-forecast.jpg
 ├── icons/
 ├── scripts/
 └── tests/
