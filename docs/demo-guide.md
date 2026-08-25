@@ -4,7 +4,7 @@ Bu senaryo canlı Hava Durumu PWA'sını veri kalitesi, gizlilik, çevrimdışı
 
 ## Hazırlık
 
-- [Canlı demoyu](https://nurettin-erdogan.github.io/weather-app/) aç.
+- [Canlı demoyu](https://turkiye-hava-pwa.vercel.app) aç.
 - Tarayıcı geliştirici araçlarında mobil görünümü ve çevrimdışı modu hazır tut.
 - Arama örneği olarak `Karesi / Balıkesir` kullan.
 
