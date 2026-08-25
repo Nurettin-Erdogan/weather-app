@@ -18,12 +18,12 @@ Türkiye'deki il ve ilçeler için anlık tahmin, 7 günlük görünüm, hava ka
 | **Problem** | Türkiye'de ilçe düzeyinde hava verisini hızlı, anlaşılır ve gizlilik tercihlerine saygılı biçimde sunmak |
 | **Çözüm** | API anahtarı gerektirmeyen, kurulabilir, çevrimdışı son tahmini açabilen ve 973 ilçeyi destekleyen PWA |
 | **Zor mühendislik kararları** | Koordinat veri kalitesi, izinli konum akışları, bozuk önbellekten güvenli dönüş ve erişilebilir etkileşimler |
-| **Doğrulama** | 31 otomatik test, Playwright tarayıcı senaryoları ve GitHub Pages üzerinde çalışan canlı demo |
+| **Doğrulama** | 33 otomatik test, Playwright tarayıcı senaryoları ve güvenlik başlıklı canlı Vercel dağıtımı |
 
 Bu proje; dış API entegrasyonu, veri doğrulama, PWA yaşam döngüsü, erişilebilirlik ve gizliliği birlikte ele alan üretim odaklı bir ön yüz geliştirebildiğimi gösterir.
 
 <p align="center">
-  <a href="https://nurettin-erdogan.github.io/weather-app/"><strong>Canlı demoyu aç →</strong></a>
+  <a href="https://turkiye-hava-pwa.vercel.app"><strong>Canlı demoyu aç →</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/demo-guide.md"><strong>3 dakikalık demo</strong></a>
   &nbsp;·&nbsp;
@@ -95,10 +95,14 @@ Ardından `http://127.0.0.1:8000` adresini açın. Windows'ta `launch-local.bat`
 
 ### Vercel üretim dağıtımı
 
+Canlı vitrin: [https://turkiye-hava-pwa.vercel.app](https://turkiye-hava-pwa.vercel.app)
+
 Kök dizindeki `vercel.json`, statik PWA'yı ek bir build adımı olmadan yayınlar ve
 CSP, clickjacking, MIME sniffing, referrer ile tarayıcı yetki başlıklarını HTTP
 katmanında uygular. Service worker dosyası yeni sürümlerin zamanında bulunabilmesi
 için yeniden doğrulanan bir cache politikasıyla sunulur.
+
+GitHub Pages dağıtımı yedek ayna olarak çalışmayı sürdürür.
 
 ## Testler
 
