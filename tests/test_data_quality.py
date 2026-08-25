@@ -111,8 +111,9 @@ class StaticQualityTests(unittest.TestCase):
 
     def test_social_preview_uses_a_supported_raster_image(self):
         index = INDEX_PATH.read_text(encoding="utf-8")
-        preview = "docs/screenshots/kadikoy-forecast.jpg"
+        preview = "docs/social-preview.png"
         self.assertEqual(index.count(preview), 2)
+        self.assertTrue((ROOT / preview).is_file())
 
     def test_service_worker_does_not_mask_stale_weather_as_live_data(self):
         service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")

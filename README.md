@@ -1,6 +1,10 @@
 # Hava Durumu
 
 <p align="center">
+  <img src="docs/social-preview.png" alt="Türkiye Hava — il ve ilçeler için çevrimdışı PWA" width="1100">
+</p>
+
+<p align="center">
   <img src="docs/screenshots/kadikoy-forecast.jpg" alt="Kadıköy için canlı hava tahmini ekranı" width="900">
 </p>
 
@@ -18,7 +22,7 @@ Türkiye'deki il ve ilçeler için anlık tahmin, 7 günlük görünüm, hava ka
 | **Problem** | Türkiye'de ilçe düzeyinde hava verisini hızlı, anlaşılır ve gizlilik tercihlerine saygılı biçimde sunmak |
 | **Çözüm** | API anahtarı gerektirmeyen, kurulabilir, çevrimdışı son tahmini açabilen ve 973 ilçeyi destekleyen PWA |
 | **Zor mühendislik kararları** | Koordinat veri kalitesi, izinli konum akışları, bozuk önbellekten güvenli dönüş ve erişilebilir etkileşimler |
-| **Doğrulama** | 33 otomatik test, Playwright tarayıcı senaryoları ve güvenlik başlıklı canlı Vercel dağıtımı |
+| **Doğrulama** | 34 otomatik test, Playwright tarayıcı senaryoları ve güvenlik başlıklı canlı Vercel dağıtımı |
 
 Bu proje; dış API entegrasyonu, veri doğrulama, PWA yaşam döngüsü, erişilebilirlik ve gizliliği birlikte ele alan üretim odaklı bir ön yüz geliştirebildiğimi gösterir.
 
