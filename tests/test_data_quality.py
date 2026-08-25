@@ -123,16 +123,16 @@ class StaticQualityTests(unittest.TestCase):
     def test_versioned_assets_match_service_worker_shell(self):
         index = INDEX_PATH.read_text(encoding="utf-8")
         service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")
-        self.assertIn("style.css?v=20260625-1", index)
-        self.assertIn("app.js?v=20260625-1", index)
-        self.assertIn("style.css?v=20260625-1", service_worker)
-        self.assertIn("app.js?v=20260625-1", service_worker)
+        self.assertIn("style.css?v=20260825-1", index)
+        self.assertIn("app.js?v=20260825-1", index)
+        self.assertIn("style.css?v=20260825-1", service_worker)
+        self.assertIn("app.js?v=20260825-1", service_worker)
         self.assertIn("js/weather-alerts.js", service_worker)
 
     def test_theme_is_initialized_before_the_stylesheet_loads(self):
         index = INDEX_PATH.read_text(encoding="utf-8")
-        bootstrap = 'js/theme-init.js?v=20260625-1'
-        stylesheet = 'style.css?v=20260625-1'
+        bootstrap = 'js/theme-init.js?v=20260825-1'
+        stylesheet = 'style.css?v=20260825-1'
         self.assertIn(bootstrap, index)
         self.assertIn(bootstrap, SERVICE_WORKER_PATH.read_text(encoding="utf-8"))
         self.assertLess(index.index(bootstrap), index.index(stylesheet))

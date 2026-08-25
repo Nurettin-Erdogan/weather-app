@@ -189,6 +189,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 .primary-button { color: white; background: linear-gradient(135deg, var(--primary), #2563eb); box-shadow: 0 8px 20px rgba(15, 118, 110, .2); }
 .secondary-button { border-color: var(--line); color: var(--text); background: var(--surface-solid); }
+.sample-location-button { border-color: color-mix(in srgb, var(--primary) 38%, var(--line)); color: var(--primary); }
 .primary-button:hover, .secondary-button:hover { transform: translateY(-2px); }
 button:disabled { cursor: wait; opacity: .62; transform: none !important; }
 
