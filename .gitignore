@@ -22,6 +22,7 @@ data/geocode-cache.json
 data/*.bak*
 reports/
 demo-commit.txt
+debug.log
 
 # Generated release artifacts
 /release/

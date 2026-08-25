@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "il-ilce-with-loc.json"
 INDEX_PATH = ROOT / "index.html"
 SERVICE_WORKER_PATH = ROOT / "service-worker.js"
+VERCEL_PATH = ROOT / "vercel.json"
 
 
 def distance_km(lat1, lon1, lat2, lon2):
@@ -84,6 +85,35 @@ class CoordinateQualityTests(unittest.TestCase):
 
 
 class StaticQualityTests(unittest.TestCase):
+    def test_vercel_applies_production_security_headers(self):
+        config = json.loads(VERCEL_PATH.read_text(encoding="utf-8"))
+        rules = {rule["source"]: rule["headers"] for rule in config["headers"]}
+        headers = {item["key"].lower(): item["value"] for item in rules["/(.*)"]}
+
+        self.assertEqual(headers["x-content-type-options"], "nosniff")
+        self.assertEqual(headers["x-frame-options"], "DENY")
+        self.assertEqual(headers["referrer-policy"], "no-referrer")
+        self.assertEqual(
+            headers["permissions-policy"],
+            "camera=(), microphone=(), geolocation=(self)",
+        )
+        self.assertIn("frame-ancestors 'none'", headers["content-security-policy"])
+        self.assertIn("https://api.open-meteo.com", headers["content-security-policy"])
+
+        worker_headers = {
+            item["key"].lower(): item["value"]
+            for item in rules["/service-worker.js"]
+        }
+        self.assertEqual(
+            worker_headers["cache-control"],
+            "public, max-age=0, must-revalidate",
+        )
+
+    def test_social_preview_uses_a_supported_raster_image(self):
+        index = INDEX_PATH.read_text(encoding="utf-8")
+        preview = "docs/screenshots/kadikoy-forecast.jpg"
+        self.assertEqual(index.count(preview), 2)
+
     def test_service_worker_does_not_mask_stale_weather_as_live_data(self):
         service_worker = SERVICE_WORKER_PATH.read_text(encoding="utf-8")
         self.assertNotIn("api.open-meteo.com", service_worker)

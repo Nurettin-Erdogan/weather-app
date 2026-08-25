@@ -93,6 +93,13 @@ Ardından `http://127.0.0.1:8000` adresini açın. Windows'ta `launch-local.bat`
 
 `file://` üzerinden doğrudan açmayın; ES modülleri ve service worker için HTTP gerekir.
 
+### Vercel üretim dağıtımı
+
+Kök dizindeki `vercel.json`, statik PWA'yı ek bir build adımı olmadan yayınlar ve
+CSP, clickjacking, MIME sniffing, referrer ile tarayıcı yetki başlıklarını HTTP
+katmanında uygular. Service worker dosyası yeni sürümlerin zamanında bulunabilmesi
+için yeniden doğrulanan bir cache politikasıyla sunulur.
+
 ## Testler
 
 ```bash
