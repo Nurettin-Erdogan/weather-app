@@ -15,6 +15,8 @@
 
 Türkiye'deki il ve ilçeler için anlık tahmin, 7 günlük görünüm, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
 
+> **English summary:** Privacy-focused, installable weather PWA for Türkiye with district-level forecasts, air quality, offline behavior and accessibility. Built with vanilla JavaScript, Open-Meteo, Service Workers and Playwright, with automated data-quality and browser tests.
+
 ## Portföy özeti
 
 | | |
