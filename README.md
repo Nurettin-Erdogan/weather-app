@@ -48,7 +48,6 @@ Bu proje; dış API entegrasyonu, veri doğrulama, PWA yaşam döngüsü, erişi
 ## Öne çıkan özellikler
 
 - 973 ilçe için doğrulanmış yerel koordinat verisi
-- İlk ziyaretçinin gerçek ürün akışını tek tıkla görebilmesi için açık onaylı Kadıköy örnek tahmini
 - Türkçe karakterleri destekleyen hızlı il/ilçe araması
 - Anlık sıcaklık ve hissedilen sıcaklık
 - Nem, yağış, bulutluluk, rüzgâr yönü ve rüzgâr hamlesi
