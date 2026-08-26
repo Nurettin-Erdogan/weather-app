@@ -24,7 +24,7 @@ import { buildWeatherAlerts } from './js/weather-alerts.js';
 const AUTO_REFRESH_MS = 15 * 60 * 1000;
 
 const elements = Object.fromEntries([
-  'searchForm', 'cityInput', 'clearBtn', 'searchBtn', 'suggestions', 'locationBtn', 'sampleLocationBtn',
+  'searchForm', 'cityInput', 'clearBtn', 'searchBtn', 'suggestions', 'locationBtn',
   'unitCBtn', 'unitFBtn', 'notice', 'result', 'recentSection', 'recentList',
   'clearRecentBtn', 'savedSection', 'savedList', 'savedEmpty', 'saveCurrentBtn', 'themeBtn',
   'languageBtn', 'installBtn', 'offlineBanner', 'helpBtn', 'ipDialog', 'allowIpBtn',
@@ -1013,21 +1013,6 @@ async function handleUseLocation() {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 });
 }
 
-async function openSampleLocation() {
-  const sampleLocation = {
-    id: 'kadikoy|istanbul',
-    name: 'Kadıköy',
-    admin1: 'İstanbul',
-    label: 'Kadıköy / İstanbul',
-    country: 'Türkiye',
-    latitude: 40.9917,
-    longitude: 29.0277,
-    source: 'sample',
-  };
-  elements.cityInput.value = sampleLocation.label;
-  await openWeather(sampleLocation);
-}
-
 async function useApproximateIpLocation() {
   elements.ipDialog.close();
   setLoading(true);
@@ -1159,7 +1144,6 @@ function bindEvents() {
     elements.cityInput.focus();
   });
   elements.locationBtn.addEventListener('click', handleUseLocation);
-  elements.sampleLocationBtn.addEventListener('click', openSampleLocation);
   elements.unitCBtn.addEventListener('click', () => selectUnit('C'));
   elements.unitFBtn.addEventListener('click', () => selectUnit('F'));
   elements.unitCBtn.parentElement.addEventListener('keydown', event => {

@@ -218,18 +218,10 @@ class WeatherAppTests(unittest.TestCase):
         self.assertEqual(self.page.locator("#suggestions .suggestion-item").count(), 0)
         self.assertEqual(self.page_errors, [])
 
-    def test_sample_location_button_opens_kadikoy_without_requesting_device_location(self):
+    def test_sample_location_shortcut_is_not_present(self):
         self.open_app()
-        self.page.click("#sampleLocationBtn")
-        self.page.wait_for_selector(".current-card", timeout=15000)
-
-        self.assertTrue(self.forecast_queries)
-        query = self.forecast_queries[-1]
-        self.assertEqual(query["latitude"][0], "40.9917")
-        self.assertEqual(query["longitude"][0], "29.0277")
-        self.assertIn("Kadıköy / İstanbul", self.page.locator(".current-location h2").inner_text())
-        self.assertEqual(self.reverse_requests, [])
-        self.assertEqual(self.ip_requests, [])
+        self.assertEqual(self.page.locator("#sampleLocationBtn").count(), 0)
+        self.assertNotIn("Örnek: Kadıköy", self.page.locator("body").inner_text())
         self.assertEqual(self.page_errors, [])
 
     def test_early_search_waits_for_the_local_district_index(self):
