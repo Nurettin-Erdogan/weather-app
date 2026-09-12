@@ -5,126 +5,158 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/kadikoy-forecast.jpg" alt="Kadıköy için canlı hava tahmini ekranı" width="900">
-</p>
-
-<p align="center">
   <a href="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/ci.yml"><img src="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI durumu"></a>
   <a href="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/codeql.yml"><img src="https://github.com/Nurettin-Erdogan/weather-app/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL güvenlik analizi"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/lisans-MIT-0f766e.svg" alt="MIT Lisansı"></a>
-  <a href="https://turkiye-hava-pwa.vercel.app"><img src="https://img.shields.io/badge/canl%C4%B1%20demo-Vercel-0f766e.svg" alt="Canlı demo"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f766e.svg" alt="MIT Lisansı"></a>
+  <a href="https://turkiye-hava-pwa.vercel.app"><img src="https://img.shields.io/badge/live-Vercel-0f766e.svg" alt="Canlı demo"></a>
 </p>
 
-Türkiye'deki il ve ilçeler için anlık tahmin, 7 günlük görünüm, hava kalitesi ve günlük planlama önerileri sunan; kurulum gerektirmeyen, gizlilik odaklı bir Progressive Web App.
+**Türkiye genelinde 973 ilçe için hava tahmini, hava kalitesi ve çevrimdışı son tahmin erişimi sunan gizlilik odaklı PWA.**
 
-## Bir dakikada dene
-
-1. [Uygulamayı aç](https://turkiye-hava-pwa.vercel.app) ve bir ilçe ara; aynı isimli ilçelerde ili seç.
-2. Günlük tahminlerden birini seçerek saatlik görünümü incele.
-3. Bir tahmin açıldıktan sonra bağlantıyı kesip son kaydedilen tahmine erişimi dene.
-
-**Teknik odak:** Konum doğrulaması, eski veriyi canlı veriden ayırma ve kullanıcı onaylı PWA güncellemeleri. [Konum ve veri akışı](app.js) · [Önbellek yönetimi](service-worker.js)
-
-**Sınırlar:** Çevrimdışı görünüm yeni tahmin üretmez; son kaydedilen veriyi gösterir. GPS ülke doğrulaması yapılamazsa uygulama yakın ilçeyi tahmin ederek seçmez; manuel arama kullanılabilir. Otomatik risk özeti resmî meteorolojik uyarı değildir.
-
-## Özet
-
-| | |
-| --- | --- |
-| **Problem** | Türkiye'de ilçe düzeyinde hava verisini hızlı, anlaşılır ve gizlilik tercihlerine saygılı biçimde sunmak |
-| **Çözüm** | API anahtarı gerektirmeyen, kurulabilir, çevrimdışı son tahmini açabilen ve 973 ilçeyi destekleyen PWA |
-| **Kararlar** | Koordinat veri kalitesi, izinli konum akışları, bozuk önbellekten güvenli dönüş ve erişilebilir etkileşimler |
-| **Doğrulama** | Playwright tarayıcı senaryoları, veri doğrulama kontrolleri ve güvenlik başlıklı canlı Vercel dağıtımı |
-
-Türkiye Hava, dış tahmin API’sini veri kalitesi, izinli konum, PWA yaşam döngüsü ve erişilebilirlikle birlikte sunar.
-
-## English
-
-**Türkiye Hava** is a privacy-minded Progressive Web App for Turkish provinces and districts: Open-Meteo forecasts, installable offline shell, no API keys. Live demo: [turkiye-hava-pwa.vercel.app](https://turkiye-hava-pwa.vercel.app).
+Türkiye Hava; Open-Meteo ve OpenStreetMap tabanlı servisleri kullanan, kurulum gerektirmeden tarayıcıdan çalışan ve istenirse cihaza kurulabilen bir Progressive Web App'tir. Konum, önbellek, erişilebilirlik ve veri güncelliği uygulamanın temel mühendislik odaklarıdır.
 
 <p align="center">
   <a href="https://turkiye-hava-pwa.vercel.app"><strong>Canlı demoyu aç →</strong></a>
   &nbsp;·&nbsp;
-  <a href="docs/demo-guide.md"><strong>Canlı tur</strong></a>
+  <a href="docs/demo-guide.md"><strong>Demo rehberi</strong></a>
   &nbsp;·&nbsp;
-  <a href="#testler">Testler</a>
+  <a href="#test-ve-kalite"><strong>Testler</strong></a>
   &nbsp;·&nbsp;
-  <a href="#veri-ve-gizlilik">Gizlilik</a>
+  <a href="#veri-ve-gizlilik"><strong>Gizlilik</strong></a>
 </p>
 
-## Teknolojiler
+<p align="center">
+  <img src="docs/screenshots/kadikoy-forecast.jpg" alt="Kadıköy için hava tahmini ekranı" width="900">
+</p>
 
-- Vanilla JavaScript ve ES modülleri
-- HTML/CSS, responsive ve erişilebilir arayüz
-- Open-Meteo Forecast + Air Quality API
-- OpenStreetMap tabanlı Photon ters konum çözümlemesi
-- Service Worker, Web App Manifest ve `localStorage`
-- Playwright tabanlı uçtan uca testler
+## Kısa özet
+
+| | |
+| --- | --- |
+| **Kapsam** | Türkiye'deki 973 ilçe |
+| **Tahmin** | Anlık durum, saatlik görünüm, 7 günlük tahmin |
+| **Ek veriler** | Hava kalitesi, UV, gün doğumu/batımı, yağış ve rüzgâr |
+| **PWA** | Kurulabilir uygulama, service worker, çevrimdışı son tahmin |
+| **Konum** | Kullanıcı onaylı GPS ve isteğe bağlı yaklaşık IP konumu |
+| **Gizlilik** | Hesap yok, API anahtarı yok, tercihler cihazda tutulur |
+| **Erişilebilirlik** | Klavye kullanımı, erişilebilir veri tablosu, mobil/masaüstü arayüz |
+| **Kalite** | Playwright senaryoları, veri doğrulama testleri, CI ve CodeQL |
 
 ## Öne çıkan özellikler
 
-- 973 ilçe için doğrulanmış yerel koordinat verisi
-- Türkçe karakterleri destekleyen hızlı il/ilçe araması
+### Tahmin ve günlük kullanım
+
 - Anlık sıcaklık ve hissedilen sıcaklık
-- Nem, yağış, bulutluluk, rüzgâr yönü ve rüzgâr hamlesi
-- Avrupa Hava Kalitesi İndeksi, anlık UV, günlük maksimum UV, gün doğumu ve gün batımı
-- 24 saatlik sıcaklık/yağış grafiği ve saatlik kartlar
-- Gün seçimiyle birlikte güncellenen saatlik grafik ve kartlar
-- 7 günlük tahmin; günlük kartlarda yağış, rüzgâr ve UV özeti
-- Celsius/Fahrenheit seçimi
-- Klavye ok tuşlarıyla kullanılabilen erişilebilir sıcaklık birimi seçimi
-- Son aramaları ve son açılan konumu cihazda saklama; açılışta hızlı geri yükleme
-- En fazla sekiz kayıtlı konum, varsayılan konum seçimi ve açılışta otomatik yükleme
-- Hava kaynağı, alınma zamanı, tahmin zamanı ve kullanılan koordinatı gösteren veri bilgisi
-- Fırtına, kuvvetli yağış, kar, rüzgâr, sıcaklık, don, UV ve hava kalitesi için 24 saatlik otomatik risk özeti
-- Otomatik risk özetini resmî uyarıdan ayıran açıklama ve MGM uyarı bağlantısı
-- Açık/koyu tema ve Türkçe/İngilizce arayüz
-- GPS konumu ve açık onaylı yaklaşık IP konumu
-- GPS konumunu idari ilçe adına eşleyen OpenStreetMap ters konum çözümleme
-- Ters konum doğrulamasıyla Türkiye dışındaki GPS konumlarını güvenle reddetme
-- Açıklamalı PWA kurulum kartı ve çevrimdışı son tahmini tek tıkla açma
-- Açık sekmede, bağlantı geri geldiğinde ve uygulamaya dönüldüğünde sessiz otomatik yenileme
-- Mobil ve masaüstü erişilebilir arayüz
-- Yağış, rüzgâr ve UV tercihlerini kullanan kişisel uyarı eşikleri
-- Önümüzdeki 24 saat için dışarı planı, şemsiye ve hava kalitesi önerileri
-- Kayıtlı konumları isteğe bağlı, tek ekranda karşılaştırma
-- PM2.5 ve PM10 değerlerini içeren hava kalitesi ayrıntıları
-- Canvas grafiğine ek olarak açılabilir erişilebilir saatlik veri tablosu
-- Zorla yenilemek yerine kullanıcının onayıyla etkinleşen PWA güncellemesi
-- İlk açılışı hafifleten geç tema önleme, lazy grafik yükleme ve skeleton yükleme durumu
+- 24 saatlik sıcaklık / yağış görünümü
+- 7 günlük tahmin
+- Nem, bulutluluk, yağış, rüzgâr yönü ve rüzgâr hamlesi
+- Avrupa Hava Kalitesi İndeksi, PM2.5 ve PM10 ayrıntıları
+- Anlık ve günlük maksimum UV
+- Gün doğumu ve gün batımı
+- Celsius / Fahrenheit seçimi
+- Türkçe ve İngilizce arayüz
+- Açık / koyu tema
+- En fazla sekiz kayıtlı konum ve varsayılan konum seçimi
+- Kayıtlı konumları tek ekranda karşılaştırma
+
+### PWA ve çevrimdışı deneyim
+
+- Kurulabilir PWA
+- Son başarılı tahmini çevrimdışı açabilme
+- Service Worker ile uygulama kabuğu önbelleği
+- Kullanıcı onayıyla etkinleşen PWA güncellemesi
+- Bağlantı geri geldiğinde sessiz yenileme
+- Son aramaları, son açılan konumu ve tercihleri cihazda saklama
+- Bozuk / geçersiz yerel veride güvenli varsayılanlara dönüş
+
+### Konum ve gizlilik
+
+- GPS yalnızca kullanıcı isteğiyle çalışır
+- Yaklaşık IP konumu için ayrıca açık onay istenir
+- GPS koordinatları Open-Meteo ve ters konum çözümleme için Photon'a gönderilir
+- Türkiye dışındaki GPS konumları güvenle reddedilir
+- Konum izni reddedilirse IP servisi otomatik çağrılmaz
+- Kullanıcı hesabı ve sunucuda profil verisi yoktur
+- Tercihler ve kayıtlı konumlar `localStorage` içinde tutulur
+- Üçüncü taraf isteklere sayfa adresi referrer olarak gönderilmez
+
+## Teknik mimari
+
+```text
+Kullanıcı
+  ├─> İl / ilçe arama
+  ├─> GPS (isteğe bağlı)
+  └─> Yaklaşık IP (açık onayla)
+        │
+        ├─> Open-Meteo Forecast API
+        ├─> Open-Meteo Air Quality API
+        └─> OpenStreetMap / Photon
+              │
+              └─> Vanilla JS arayüz
+                    ├─> Service Worker
+                    ├─> localStorage
+                    └─> PWA manifest
+```
+
+## Teknolojiler
+
+- Vanilla JavaScript ve ES modules
+- HTML / CSS
+- Progressive Web App, Service Worker ve Web App Manifest
+- Open-Meteo Forecast + Air Quality API
+- OpenStreetMap tabanlı Photon reverse geocoding
+- `localStorage`
+- Playwright tabanlı tarayıcı testleri
+- GitHub Actions CI
+- CodeQL
+- Vercel
+
+## Mühendislik kararları
+
+- **973 ilçe için yerel koordinat seti:** Kullanıcı aramasını dış geocoding servisine tamamen bağımlı bırakmadan hızlı eşleme sağlar.
+- **Aynı isimli ilçelerde il doğrulaması:** Yanlış konum seçimini azaltır.
+- **Konumda açık izin:** GPS ve yaklaşık IP akışları otomatik tetiklenmez.
+- **Çevrimdışı modda eski veri ayrımı:** Offline kullanım yeni tahmin üretmez; yalnızca son kaydedilen veriyi gösterir.
+- **Güvenli önbellek dönüşü:** Bozuk veya Türkiye dışı önbellek verileri kabul edilmez.
+- **Kullanıcı kontrollü PWA güncellemesi:** Açık sekmeyi zorla yenilemek yerine yeni sürüm kullanıcıya bildirilir.
+- **Erişilebilir veri sunumu:** Canvas grafik yanında açılabilir saatlik veri tablosu da bulunur.
+
+## Risk özeti
+
+Uygulama; önümüzdeki 24 saat için fırtına, kuvvetli yağış, kar, rüzgâr, sıcaklık, don, UV ve hava kalitesi verilerinden otomatik bir risk özeti üretir.
+
+Bu özet **resmî meteorolojik uyarı değildir**. Kritik durumlarda Meteoroloji Genel Müdürlüğü ve ilgili resmî kurumların duyuruları esas alınmalıdır.
 
 ## Veri ve gizlilik
 
-- GPS konumu yalnızca kullanıcı butona bastığında tarayıcıdan istenir; koordinat hava verisi için Open-Meteo'ya, ilçe adını belirlemek için OpenStreetMap tabanlı Photon'a gönderilir.
-- Yerel listede bulunamayan arama metni eşleştirme için Open-Meteo geocoding servisine gönderilir.
-- Konum izni reddedildiğinde IP servisi otomatik çağrılmaz.
-- Yaklaşık IP konumu için kullanıcıdan ayrıca açık onay alınır ve yalnızca `ipwho.is` kullanılır.
-- Tercihler, kayıtlı konumlar, son aramalar ve son tahmin cihazdaki `localStorage` içinde tutulur.
-- Projede API anahtarı veya kullanıcı hesabı yoktur.
-- Uygulama üçüncü taraf isteklere sayfa adresini referrer olarak göndermez.
+- GPS konumu yalnızca kullanıcı butona bastığında istenir.
+- Koordinatlar hava verisi için Open-Meteo'ya, idari konum çözümlemesi için Photon'a gönderilir.
+- Yerel listede bulunamayan arama metni eşleştirme amacıyla Open-Meteo geocoding servisine gönderilebilir.
+- Yaklaşık IP konumu yalnızca açık onayla ve `ipwho.is` üzerinden alınır.
+- Tercihler, kayıtlı konumlar, son aramalar ve son tahmin cihaz üzerinde tutulur.
+- Uygulamada API anahtarı veya kullanıcı hesabı yoktur.
 
-## Yerel Çalıştırma
+## Bir dakikada dene
+
+1. [Canlı uygulamayı aç](https://turkiye-hava-pwa.vercel.app).
+2. Bir ilçe ara; aynı isimli ilçelerde ili seç.
+3. Günlük kartlardan birini açarak saatlik tahmini incele.
+4. Bir tahmin yüklendikten sonra bağlantıyı kesip son kaydedilen tahmini aç.
+5. Tema, dil, birim veya kayıtlı konum özelliklerini değiştirip sayfayı yeniden aç.
+
+## Yerel çalıştırma
 
 ```bash
 python -m http.server 8000 --bind 127.0.0.1
 ```
 
-Ardından `http://127.0.0.1:8000` adresini açın. Windows'ta `launch-local.bat` dosyası sunucuyu ve tarayıcıyı otomatik açar.
+Ardından `http://127.0.0.1:8000` adresini açın.
 
-`file://` üzerinden doğrudan açmayın; ES modülleri ve service worker için HTTP gerekir.
+Windows'ta `launch-local.bat` dosyası sunucuyu ve tarayıcıyı otomatik açar.
 
-### Vercel üretim dağıtımı
+> `file://` üzerinden doğrudan açmayın; ES modülleri ve Service Worker için HTTP gerekir.
 
-Canlı vitrin: [https://turkiye-hava-pwa.vercel.app](https://turkiye-hava-pwa.vercel.app)
-
-Kök dizindeki `vercel.json`, statik PWA'yı ek bir build adımı olmadan yayınlar ve
-CSP, clickjacking, MIME sniffing, referrer ile tarayıcı yetki başlıklarını HTTP
-katmanında uygular. Service worker dosyası yeni sürümlerin zamanında bulunabilmesi
-için yeniden doğrulanan bir cache politikasıyla sunulur.
-
-GitHub Pages dağıtımı yedek ayna olarak çalışmayı sürdürür.
-
-## Testler
+## Test ve kalite
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -132,53 +164,44 @@ python -m playwright install chromium
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-Test paketi şunları zorunlu kılar:
+Test paketi özellikle şunları doğrular:
 
 - 973 koordinatın Türkiye sınırları içinde olması
 - İller arasında yanlış ortak koordinat bulunmaması
-- Şüpheli ilçe/il küme sapmalarının bulunmaması
-- Doğru Karesi koordinatının API'ye gönderilmesi
-- Arama, birim, dil, tema, erişilebilir günlük seçim ve mobil görünüm
-- API hata/yeniden deneme akışı
-- IP servisine kullanıcı onayı olmadan istek gönderilmemesi
+- Aynı isimli ilçelerde il seçiminin zorunlu olması
+- Doğru koordinatın hava API'sine gönderilmesi
 - Türkiye dışındaki GPS konumlarının reddedilmesi
-- Aynı isimli ilçelerde il seçimi zorunluluğu
-- Bozuk yerel depolama verisinde güvenli varsayılanlara dönülmesi
-- Bozuk veya Türkiye dışı çevrimdışı hava önbelleğinin reddedilmesi
+- IP servisine açık onay olmadan istek gönderilmemesi
+- Arama, birim, dil, tema ve mobil görünüm akışları
+- API hata / yeniden deneme davranışı
+- Bozuk `localStorage` ve hava önbelleğinde güvenli dönüş
 - PWA önbellek sürümü ile HTML varlık sürümlerinin eşleşmesi
 - Veri kaynağı ve güncellik bilgilerinin görünür olması
-- Kayıtlı ve varsayılan konumun yeniden açılışta doğru yüklenmesi
-- Son açılan konumun yeniden açılışta geri yüklenmesi
-- Kurulum kartının görünüp kapatılabilmesi
-- Otomatik hava riski özetinin resmî uyarı olmadığını açıkça belirtmesi
+- Kayıtlı ve varsayılan konumların yeniden açılışta geri yüklenmesi
+- Otomatik risk özetinin resmî uyarı olmadığını belirtmesi
 
-## Veri Bakımı
+## Üretim dağıtımı
 
-Koordinatları güvenilir tam eşleşmelerle denetlemek ve düzeltmek:
+Canlı sürüm: [turkiye-hava-pwa.vercel.app](https://turkiye-hava-pwa.vercel.app)
+
+Kök dizindeki `vercel.json`; CSP, clickjacking, MIME sniffing, referrer ve tarayıcı izin başlıklarını HTTP katmanında uygular. GitHub Pages dağıtımı yedek ayna olarak kullanılabilir.
+
+## Veri bakımı
+
+Koordinat veri setini denetlemek için:
 
 ```bash
 python scripts/repair_coordinates.py
 python scripts/repair_coordinates.py --apply
 ```
 
-Betik bulanık eşleşme kullanmaz. Dört dış kaynak istisnası kodda açıkça kayıtlıdır.
-
-## Release Üretimi
+Release paketi oluşturmak için:
 
 ```bash
 python scripts/build_release.py
 ```
 
-Çıktılar:
-
-```text
-dist/weather-app/
-dist/weather-app-release.zip
-```
-
-Üretici betik eksik dosya, ilçe sayısı ve Türkiye koordinat sınırı kontrollerini paketlemeden önce çalıştırır.
-
-## Proje Yapısı
+## Proje yapısı
 
 ```text
 weather-app/
@@ -187,7 +210,6 @@ weather-app/
 ├── app.js
 ├── service-worker.js
 ├── manifest.webmanifest
-├── CHANGELOG.md
 ├── js/
 │   ├── api.js
 │   ├── chart.js
@@ -199,18 +221,23 @@ weather-app/
 │   ├── weather-alerts.js
 │   └── weather-codes.js
 ├── data/il-ilce-with-loc.json
-├── docs/screenshots/kadikoy-forecast.jpg
-├── icons/
+├── docs/
 ├── scripts/
 └── tests/
 ```
 
-## Veri Kaynakları
+## Veri kaynakları
 
 - Tahmin ve geocoding: Open-Meteo
 - Hava kalitesi: Open-Meteo Air Quality API
-- GPS ters konum çözümleme: OpenStreetMap tabanlı Photon
+- GPS reverse geocoding: OpenStreetMap tabanlı Photon
 - Yerel koordinat temel kaynağı: BuNick Turkey Cities & Districts
+
+## English
+
+**Türkiye Hava** is a privacy-minded Progressive Web App covering 973 Turkish districts. It provides current conditions, hourly and 7-day forecasts, air quality, installable PWA support and offline access to the last saved forecast. The app uses Open-Meteo and OpenStreetMap-based Photon without requiring user accounts or API keys.
+
+Live demo: [turkiye-hava-pwa.vercel.app](https://turkiye-hava-pwa.vercel.app)
 
 ## Lisans
 
